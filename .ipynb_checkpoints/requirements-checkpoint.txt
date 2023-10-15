@@ -4,5 +4,4 @@ flask-paginate==2022.1.8
 Flask-SQLAlchemy==3.0.5
 SQLAlchemy==2.0.20
 Werkzeug==2.3.7
-pickle
 
