@@ -1,7 +1,7 @@
 Flask==2.3.3
 Flask-Login==0.6.2
-flask-paginate==2022.1.8
 Flask-SQLAlchemy==3.0.5
-SQLAlchemy==2.0.20
 Werkzeug==2.3.7
+jinja2==3.1.2
+
 

@@ -4,6 +4,7 @@ from os import path
 from flask_login import LoginManager
 import ast
 import pickle 
+import pandas as pd
 
 db = SQLAlchemy()
 DB_NAME = "database.db"

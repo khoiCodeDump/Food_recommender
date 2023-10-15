@@ -3,12 +3,9 @@ from flask_login import login_required, current_user
 from .models import User, Recipe, Tag, Ingredient, table, ingredient_table
 from . import db
 import json
-import re
 import pickle
 import math
 import os
-import shutil
-import copy
 
 views = Blueprint('views', __name__)
 
