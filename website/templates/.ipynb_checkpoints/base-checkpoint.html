@@ -3,12 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link href="https://uploads-ssl.webflow.com/647f9eff111d29fab2ec64f6/css/jungle-of-veggies.webflow.6ccbe4d3a.css" rel="stylesheet" type="text/css"/>
-
+    <!-- <link href="https://uploads-ssl.webflow.com/647f9eff111d29fab2ec64f6/css/jungle-of-veggies.webflow.6ccbe4d3a.css" rel="stylesheet" type="text/css"/> -->
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+      integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+      crossorigin="anonymous"
+    />
     <title>{% block title %}Home{% endblock %}</title>
   </head>
   <body>
-    <!-- <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -23,14 +33,14 @@
           {% endif %}
         </div>
       </div>
-    </nav> -->
+    </nav>
      
-      <div class="navigator">
+      <!-- <div class="navigator">
                 <div class="page-padding">
                     <div class="container-nav">
-                        <!-- <a href="/" aria-current="page" class="logo-nav-link w-inline-block w--current">
+                        <a href="/" aria-current="page" class="logo-nav-link w-inline-block w--current">
                             <img src="https://uploads-ssl.webflow.com/647f9eff111d29fab2ec64f6/647fa86d111d29fab2f57dbb_jov-jungle_of_veggies-logo.svg" loading="lazy" alt="" class="logo-nav"/>
-                        </a> -->
+                        </a>
                         <div></div>
                         <div class="moving-nav-bar">
                             <a href="/recipes-collection/all-recipes" class="button-moving-nav underline w-button">All recipes</a>
@@ -45,8 +55,8 @@
                        
                     </div>
                 </div>
-            </div>
-<!-- 
+            </div> -->
+
     {% with messages = get_flashed_messages(with_categories=true) %} {% if
     messages %} {% for category, message in messages %} {% if category ==
     'error' %}
@@ -81,7 +91,7 @@
       integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
       crossorigin="anonymous"
     ></script>
- -->
+
 
   </body>
 </html>
