@@ -17,9 +17,7 @@ with open('tags_dict.pkl', 'rb') as f:
 
 with open('ingredients_dict.pkl', 'rb') as f:
     ingredients = pickle.load(f)
-# session['search_field'] = None
-# pagination = None
-# session['search_recipes'] = None
+
 
 @views.route('/', methods=['GET', 'POST'])
 @login_required
@@ -27,18 +25,6 @@ def home():
     global tags
     page = request.args.get('page', 1, type=int)
     pagination = Recipe.query.paginate(page=page, per_page=20)
-        
-    # if request.method == 'POST': 
-    #     note = request.form.get('note')#Gets the note from the HTML 
-
-    #     if len(note) < 1:
-    #         flash('Note is too short!', category='error') 
-    #     else:
-    #         new_note = Note(data=note, user_id=current_user.id)  #providing the schema for the note 
-    #         db.session.add(new_note) #adding the note to the database 
-    #         db.session.commit()
-    #         flash('Note added!', category='success')
-    
     return render_template("home.html", allrecipes = pagination, tags=list(tags.keys()), ingredients=list(ingredients.keys()) )
     
 @views.route('/profile', methods=['GET'])
@@ -121,11 +107,6 @@ def search():
         
     if search_field == '':
         return redirect(url_for('home'))
-    
-    # search_field = search_field.lower()
-    # if 'ingredients' in search_field:
-    #     search_field = search_field.replace("ingredients", "")
-    #     return redirect(url_for('views.ingredient_search', search_field=search_field), code=302)
 
     # search_field = re.findall(r'\w+', search_field)
     search_field = search_field.split(",")
@@ -160,7 +141,6 @@ def search():
                 result = result.filter(Recipe.recipe_id.in_(list(recipes)))
                 
         elif field in tags:
-            print("In tags")
             tag_results = Tag.query.filter(Tag.name==field).first()
             
             if len(recipes) == 0:
@@ -180,7 +160,6 @@ def search():
                 result = result.filter(Recipe.recipe_id.in_(list(recipes)))
                     
         else:
-            print("In word")
             search_results = Recipe.query.filter(Recipe.name.contains(field))
             
             if len(recipes) == 0:
@@ -232,10 +211,7 @@ def search_pagination():
 
 @views.route('/delete_recipe', methods=['POST'])
 def delete_recipe():
-    # cur_recipe =  Recipe.query.get(meal_id)
-    # return render_template("recipe_base.html", user=current_user, recipe_info = cur_recipe)
-    print("In delete")
-    
+
     recipe = json.loads(request.data)
     recipe_id = recipe['recipe']
     recipe = Recipe.query.get(recipe_id)
