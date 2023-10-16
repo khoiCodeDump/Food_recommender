@@ -45,7 +45,6 @@ def create_database(app):
             tags = {}
             ingredients = {}
             db.create_all()
-        
             raw_recipes = pd.read_csv('RAW_recipes.csv')
     
             for index, row in raw_recipes.iterrows():
@@ -80,8 +79,7 @@ def create_database(app):
                             db_tag = tags[tag]
                             
                         recipe.tags.append(db_tag)
-                        
-                
+
                 db.session.add_all(db_tag_list)
                 db.session.add_all(db_ingredient_list)
                 db.session.add(recipe)
