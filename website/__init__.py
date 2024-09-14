@@ -7,7 +7,7 @@ import pickle
 import pandas as pd
 
 db = SQLAlchemy()
-DB_NAME = "database.db"
+DB_NAME = "database"
 
 def create_app():
     app = Flask(__name__)
@@ -45,7 +45,7 @@ def create_database(app):
             tags = {}
             ingredients = {}
             db.create_all()
-            raw_recipes = pd.read_csv('RAW_recipes.csv')
+            raw_recipes = pd.read_csv('archive/RAW_recipes.csv')
     
             for index, row in raw_recipes.iterrows():
                 ingredients_list = ast.literal_eval(row["ingredients"])
