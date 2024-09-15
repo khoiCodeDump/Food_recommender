@@ -1,29 +1,21 @@
 import shutil
 from flask import Blueprint, render_template, request, flash, jsonify, redirect, url_for
 from flask_login import login_required, current_user
-from .models import User, Recipe, Tag, Ingredient, table, ingredient_table
+from .models import User, Recipe, Tag, Ingredient
 from . import db
 import json
 import pickle
-import math
 import os
+import json
 
 views = Blueprint('views', __name__)
-
-with open('tags_dict.pkl', 'rb') as f:
-    tags = pickle.load(f)
-
-with open('ingredients_dict.pkl', 'rb') as f:
-    ingredients = pickle.load(f)
-
 
 @views.route('/', methods=['GET', 'POST'])
 @login_required
 def home():
-    global tags
     page = request.args.get('page', 1, type=int)
     pagination = Recipe.query.paginate(page=page, per_page=20)
-    return render_template("home.html", allrecipes = pagination, tags=list(tags.keys()), ingredients=list(ingredients.keys()) )
+    return render_template("home.html", allrecipes = pagination, tags=Tag.query.all(), ingredients= Ingredient.query.all() )
     
 @views.route('/profile', methods=['GET'])
 def profile():
@@ -85,7 +77,7 @@ def post_recipe():
         db.session.commit()
         return redirect( url_for('views.profile', code=302))
  
-    return render_template("post_recipe_form.html", user=current_user, tags=list(tags.keys()), ingredients=list(ingredients.keys()))
+    return render_template("post_recipe_form.html", user=current_user,tags=Tag.query.all(), ingredients=Ingredient.query.all())
 
 @views.route('/recipes/<meal_id>', methods=['GET'])
 def get_recipe(meal_id):
@@ -99,7 +91,8 @@ def get_recipe(meal_id):
 
 @views.route('/search', methods=['GET'])
 def search():
-    global tags, ingredients
+    tags = Tag.query.all()
+    ingredients = Ingredient.query.all()
 
     search_field = request.args.get('search-field')
         
@@ -119,7 +112,6 @@ def search():
     for field in search_field:
         field = field.strip()
         if field in ingredients:
-            print("In ingredients")
             ingredient_results = Ingredient.query.filter(Ingredient.name==field).first()
             
             if len(recipes) == 0:
@@ -195,7 +187,7 @@ def search():
 
 @views.route('/page', methods=['GET'])
 def search_pagination():
-    global tags
+    
     page = request.args.get('page', 1, type=int)
     search_field = request.args.get('search_field')
     
@@ -204,7 +196,7 @@ def search_pagination():
         
     pagination = Recipe.query.filter(Recipe.recipe_id.in_(recipe_list)).paginate(page=page, per_page=20)
 
-    return render_template("search_view.html", user=current_user, search_field=search_field, pagination=pagination, tags=list(tags.keys()), ingredients=list(ingredients.keys()) )
+    return render_template("search_view.html", user=current_user, search_field=search_field, pagination=pagination, tags=Tag.query.all(), ingredients=Ingredient.query.all())
 
 
 @views.route('/delete_recipe', methods=['POST'])

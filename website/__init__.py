@@ -3,11 +3,11 @@ from flask_sqlalchemy import SQLAlchemy
 from os import path
 from flask_login import LoginManager
 import ast
-import pickle 
 import pandas as pd
 
 db = SQLAlchemy()
 DB_NAME = "database"
+
 
 def create_app():
     app = Flask(__name__)
@@ -38,10 +38,9 @@ def create_app():
 
 
 def create_database(app):
-     if not path.exists('instance/' + DB_NAME):
-        from .models import Recipe, Tag, Ingredient
-
-        with app.app_context():
+    from .models import Recipe, Tag, Ingredient
+    with app.app_context():
+        if not path.exists('instance/' + DB_NAME):
             tags = {}
             ingredients = {}
             db.create_all()
@@ -84,9 +83,7 @@ def create_database(app):
                 db.session.add_all(db_ingredient_list)
                 db.session.add(recipe)
                 db.session.commit()
-               
+            
             print('Created Database!')
-            with open('tags_dict.pkl', 'wb') as f:
-                pickle.dump(tags, f)
-            with open('ingredients_dict.pkl', 'wb') as f:
-                pickle.dump(ingredients, f)
+            
+

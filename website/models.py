@@ -1,6 +1,7 @@
 from . import db
 from flask_login import UserMixin
 from sqlalchemy.sql import func
+from dataclasses import dataclass
 
 table = db.Table('recipe_tag',
                     db.Column('recipe_id', db.Integer, db.ForeignKey('recipe.id')),
@@ -31,12 +32,14 @@ class Recipe(db.Model):
     ingredients = db.relationship('Ingredient', secondary=ingredient_table, backref='recipes')
     desc = db.Column(db.String)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    
-class Tag(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(1000))
 
+@dataclass
+class Tag(db.Model):
+    id:int = db.Column(db.Integer, primary_key=True)
+    name:str = db.Column(db.String(1000))
+
+@dataclass
 class Ingredient(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(1000))
+    id:int = db.Column(db.Integer, primary_key=True)
+    name:str = db.Column(db.String(1000))
     
