@@ -1,5 +1,5 @@
 import shutil
-from flask import Blueprint, render_template, request, flash, jsonify, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, make_response
 from flask_login import login_required, current_user
 from .models import User, Recipe, Tag, Ingredient
 from . import db
@@ -7,22 +7,68 @@ import json
 import pickle
 import os
 import json
+import time
 
 views = Blueprint('views', __name__)
+quantity = 15
 
 @views.route('/', methods=['GET', 'POST'])
 @login_required
 def home():
-    page = request.args.get('page', 1, type=int)
-    pagination = Recipe.query.paginate(page=page, per_page=20)
-    return render_template("home.html", allrecipes = pagination, tags=Tag.query.all(), ingredients= Ingredient.query.all() )
+    data = {"route": 0}
+    
+    return render_template("home.html", data=data, tags=Tag.query.all(), ingredients= Ingredient.query.all() )
+
+
+@views.route('/load', methods=['GET'])
+def load():
+    time.sleep(0.2)
+    count = request.args.get('count', 0, type=int)
+    
+    try:
+        ids = [ id + 1 for id in range(count, count+quantity)]
+        res = Recipe.query.filter(Recipe.id.in_(ids)).all()
+        res = res[count: count + quantity]
+        data = {}
+        for stuff in res:
+            data[stuff.id] = stuff.name
+        res = make_response(data)
+    except:
+        print("No more recipes")
+        res = make_response(jsonify({}), 200)
+
+    return res
+
     
 @views.route('/profile', methods=['GET'])
 def profile():
-    page = request.args.get('page', 1, type=int)
-    pagination = Recipe.query.filter(Recipe.user_id==current_user.id).paginate(page=page, per_page=20)
-    return render_template("profile.html", user=current_user, allrecipes=pagination) 
+    data = {"route": 1}
 
+    # result = Recipe.query.filter(Recipe.user_id==current_user.id).all()
+    # print(result)
+    # for res in result:
+    #     print(res.ingredients)
+    #     print(res.tags)
+    
+    return render_template("profile.html", data=data, tags=Tag.query.all(), ingredients= Ingredient.query.all() ) 
+
+@views.route('/load_profile', methods=['GET'])
+def load_profile():
+    time.sleep(0.2)
+    count = request.args.get('count', 0, type=int)
+
+    try:
+        res = Recipe.query.filter(Recipe.user_id==current_user.id).all()
+        res = res[count: count + quantity]
+        data = {}
+        for stuff in res:
+            data[stuff.id] = stuff.name
+        res = make_response(data)
+    except:
+        print("No more posts")
+        res = make_response(jsonify({}), 200)
+
+    return res
 # @views.route('/edit_recipe', methods=['GET, POST'])
 # def edit_recipe():
     
@@ -30,7 +76,17 @@ def profile():
     
 @views.route('/post_recipe', methods=['GET', 'POST'])
 def post_recipe():
-    global tags, ingredients
+    tags_res = Tag.query.all()
+    tags = set()
+    for tag in tags_res:
+        print(tag.name)
+        tags.add(tag.name)
+
+    ingredients_res = Ingredient.query.all()
+    ingredients = set()
+    for ingredient in ingredients_res:
+        ingredients.add(ingredient.name)
+
     if request.method == 'POST': 
         name = request.form.get("Title")
         cook_time = request.form.get("Cook_time")
@@ -91,8 +147,17 @@ def get_recipe(meal_id):
 
 @views.route('/search', methods=['GET'])
 def search():
-    tags = Tag.query.all()
-    ingredients = Ingredient.query.all()
+    tags_res = Tag.query.all()
+    tags = set()
+    for tag in tags_res:
+        print(tag.name)
+        tags.add(tag.name)
+
+    ingredients_res = Ingredient.query.all()
+    ingredients = set()
+    for ingredient in ingredients_res:
+        ingredients.add(ingredient.name)
+
 
     search_field = request.args.get('search-field')
         
@@ -101,9 +166,6 @@ def search():
 
     # search_field = re.findall(r'\w+', search_field)
     search_field = search_field.split(",")
-    
-    recipe_results = []
-    index = 0
     
     result = None
     recipes = set()
@@ -182,22 +244,32 @@ def search():
 
     with open('data/' + str(current_user.id) + '/result.pkl', 'wb') as f:
         pickle.dump(search_recipes, f)
-                    
-    return redirect( url_for('views.search_pagination', search_field=",".join(search_field)), code=302)
+                
+    data = {"route": 2}
+    # return redirect( url_for('views.load_search', search_field=",".join(search_field)), code=302)
+    return render_template("search_view.html", data=data, search_field=search_field, tags=Tag.query.all(), ingredients=Ingredient.query.all())
 
-@views.route('/page', methods=['GET'])
-def search_pagination():
-    
-    page = request.args.get('page', 1, type=int)
-    search_field = request.args.get('search_field')
-    
-    with open('data/' + str(current_user.id) + '/result.pkl', 'rb') as f:
-        recipe_list = pickle.load(f)
-        
-    pagination = Recipe.query.filter(Recipe.recipe_id.in_(recipe_list)).paginate(page=page, per_page=20)
+@views.route('/load_search', methods=['GET'])
+def load_search():
 
-    return render_template("search_view.html", user=current_user, search_field=search_field, pagination=pagination, tags=Tag.query.all(), ingredients=Ingredient.query.all())
+    time.sleep(0.2)
+    count = request.args.get('count', 0, type=int)
+    print(count)
+    try:
+        with open('data/' + str(current_user.id) + '/result.pkl', 'rb') as f:
+            recipe_list = pickle.load(f)
 
+        res = Recipe.query.filter(Recipe.recipe_id.in_(recipe_list))
+        res = res[count: count + quantity]
+        data = {}
+        for stuff in res:
+            data[stuff.id] = stuff.name
+        res = make_response(data)
+    except:
+        print("No more posts")
+        res = make_response(jsonify({}), 200)
+
+    return res
 
 @views.route('/delete_recipe', methods=['POST'])
 def delete_recipe():
@@ -211,4 +283,4 @@ def delete_recipe():
             db.session.delete(recipe)
             db.session.commit()
         
-    return jsonify({})
+    return jsonify({}) 
