@@ -8,314 +8,74 @@
         <link href="https://assets.website-files.com/64268a301624b45c09d82934/css/simple-recipe-book.webflow.d949bd6eb.css" rel="stylesheet" type="text/css"/>
         <link href="https://fonts.googleapis.com" rel="preconnect"/>
         <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin="anonymous"/>
+        <link href="https://assets.website-files.com/64268a301624b45c09d82934/642dcf4fe66298be7abf172e_favicon.png" rel="shortcut icon" type="image/x-icon"/>
+        <link href="https://assets.website-files.com/64268a301624b45c09d82934/642dcf5269c2af69216ba978_webclip.png" rel="apple-touch-icon"/>
+        <link href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="../static/recipe.css">
+        
         <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js" type="text/javascript"></script>
         <script type="text/javascript">WebFont.load({  google: {    families: ["Roboto Mono:regular,500,600,700"]  }});</script>
         <script src="https://use.typekit.net/zqe5kpy.js" type="text/javascript"></script><script type="text/javascript">try{Typekit.load();}catch(e){}</script>
         <script type="text/javascript">!function(o,c){var n=c.documentElement,t=" w-mod-";n.className+=t+"js",("ontouchstart"in o||o.DocumentTouch&&c instanceof DocumentTouch)&&(n.className+=t+"touch")}(window,document);</script>
-        <link href="https://assets.website-files.com/64268a301624b45c09d82934/642dcf4fe66298be7abf172e_favicon.png" rel="shortcut icon" type="image/x-icon"/>
-        <link href="https://assets.website-files.com/64268a301624b45c09d82934/642dcf5269c2af69216ba978_webclip.png" rel="apple-touch-icon"/>
-        <link href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css" rel="stylesheet">
+        <style>
+            .splide__slide {
+                margin-right: 0 !important;
+            }
+            .splide__list {
+                gap: 0 !important;
+            }
+        </style>
     </head>
     <body>
-        <div class="page-wrapper"><div class="global-styles w-embed">
-            <style>
-
-                /* Make text look crisper and more legible in all browsers */
-                body {
-                  -webkit-font-smoothing: antialiased;
-                  -moz-osx-font-smoothing: grayscale;
-                  font-smoothing: antialiased;
-                  text-rendering: optimizeLegibility;
-                }
-                
-                /* Focus state style for keyboard navigation for the focusable elements */
-                *[tabindex]:focus-visible,
-                  input[type="file"]:focus-visible {
-                   outline: 0.125rem solid #4d65ff;
-                   outline-offset: 0.125rem;
-                }
-                
-                /* Get rid of top margin on first element in any rich text element */
-                .w-richtext > :not(div):first-child, .w-richtext > div:first-child > :first-child {
-                  margin-top: 0 !important;
-                }
-                
-                /* Get rid of bottom margin on last element in any rich text element */
-                .w-richtext>:last-child, .w-richtext ol li:last-child, .w-richtext ul li:last-child {
-                	margin-bottom: 0 !important;
-                }
-                
-                /* Prevent all click and hover interaction with an element */
-                .pointer-events-off {
-                	pointer-events: none;
-                }
-                
-                /* Enables all click and hover interaction with an element */
-                .pointer-events-on {
-                  pointer-events: auto;
-                }
-                
-                /* Create a class of .div-square which maintains a 1:1 dimension of a div */
-                .div-square::after {
-                	content: "";
-                	display: block;
-                	padding-bottom: 100%;
-                }
-                
-                /* Make sure containers never lose their center alignment */
-                .container-medium,.container-small, .container-large {
-                	margin-right: auto !important;
-                  margin-left: auto !important;
-                }
-                
-                /* 
-                Make the following elements inherit typography styles from the parent and not have hardcoded values. 
-                Important: You will not be able to style for example "All Links" in Designer with this CSS applied.
-                Uncomment this CSS to use it in the project. Leave this message for future hand-off.
-                */
-                /*
-                a,
-                .w-input,
-                .w-select,
-                .w-tab-link,
-                .w-nav-link,
-                .w-dropdown-btn,
-                .w-dropdown-toggle,
-                .w-dropdown-link {
-                  color: inherit;
-                  text-decoration: inherit;
-                  font-size: inherit;
-                }
-                */
-                
-                /* Apply "..." after 3 lines of text */
-                .text-style-3lines {
-                	display: -webkit-box;
-                	overflow: hidden;
-                	-webkit-line-clamp: 3;
-                	-webkit-box-orient: vertical;
-                }
-                
-                /* Apply "..." after 2 lines of text */
-                .text-style-2lines {
-                	display: -webkit-box;
-                	overflow: hidden;
-                	-webkit-line-clamp: 2;
-                	-webkit-box-orient: vertical;
-                }
-                
-                /* Adds inline flex display */
-                .display-inlineflex {
-                  display: inline-flex;
-                }
-                
-                /* These classes are never overwritten */
-                .hide {
-                  display: none !important;
-                }
-                
-                @media screen and (max-width: 991px) {
-                    .hide, .hide-tablet {
-                        display: none !important;
-                    }
-                }
-                  @media screen and (max-width: 767px) {
-                    .hide-mobile-landscape{
-                      display: none !important;
-                    }
-                }
-                  @media screen and (max-width: 479px) {
-                    .hide-mobile{
-                      display: none !important;
-                    }
-                }
-                 
-                .margin-0 {
-                  margin: 0rem !important;
-                }
-                  
-                .padding-0 {
-                  padding: 0rem !important;
-                }
-                
-                .spacing-clean {
-                padding: 0rem !important;
-                margin: 0rem !important;
-                }
-                
-                .margin-top {
-                  margin-right: 0rem !important;
-                  margin-bottom: 0rem !important;
-                  margin-left: 0rem !important;
-                }
-                
-                .padding-top {
-                  padding-right: 0rem !important;
-                  padding-bottom: 0rem !important;
-                  padding-left: 0rem !important;
-                }
-                  
-                .margin-right {
-                  margin-top: 0rem !important;
-                  margin-bottom: 0rem !important;
-                  margin-left: 0rem !important;
-                }
-                
-                .padding-right {
-                  padding-top: 0rem !important;
-                  padding-bottom: 0rem !important;
-                  padding-left: 0rem !important;
-                }
-                
-                .margin-bottom {
-                  margin-top: 0rem !important;
-                  margin-right: 0rem !important;
-                  margin-left: 0rem !important;
-                }
-                
-                .padding-bottom {
-                  padding-top: 0rem !important;
-                  padding-right: 0rem !important;
-                  padding-left: 0rem !important;
-                }
-                
-                .margin-left {
-                  margin-top: 0rem !important;
-                  margin-right: 0rem !important;
-                  margin-bottom: 0rem !important;
-                }
-                  
-                .padding-left {
-                  padding-top: 0rem !important;
-                  padding-right: 0rem !important;
-                  padding-bottom: 0rem !important;
-                }
-                  
-                .margin-horizontal {
-                  margin-top: 0rem !important;
-                  margin-bottom: 0rem !important;
-                }
-                
-                .padding-horizontal {
-                  padding-top: 0rem !important;
-                  padding-bottom: 0rem !important;
-                }
-                
-                .margin-vertical {
-                  margin-right: 0rem !important;
-                  margin-left: 0rem !important;
-                }
-                  
-                .padding-vertical {
-                  padding-right: 0rem !important;
-                  padding-left: 0rem !important;
-                }
-                
-                a { color: inherit; }
-
-            </style>
-        </div>
         
         <nav id="top" class="nav">
             <div class="padding-global">
                 <div class="container-large">
                     <div class="nav_content">
+                        <a href="/" aria-current="page" class="nav_link-block w-inline-block">
+                            <div>Home</div>
+                        </a>
+                        <div class="pad-right" style="padding-right: 40px;"></div>
                         <a href="/profile" aria-current="page" class="nav_link-block w-inline-block w--current">
                             <div>Profile</div>
                         </a>
-                         <div class="pad-right" style="padding-right: 40px;"></div>
-                         <a href="/" aria-current="page" class="nav_link-block w-inline-block">
-                            <div>Home</div>
-                        </a>
-    
                     </div>
                 </div>
             </div>
-          
         </nav>
-            <main class="main-wrapper">
+            <main class="default-wrapper">
                 <header class="section_recipe-header">
                     
-                    <div class="recipe_carousel">
+                    <div class="recipe_carousel container-large splide-wrapper">
                         <div role="group" class="splide">
                             <div class="splide__track">
                                 <div class="splide__list">
-                                    <div class="splide__slide">
-                                        <div class="recipe_carousel-img-parent">
-                                            <img src="https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash.jpg" loading="lazy" alt="" sizes="100vw" srcset="https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-500.jpg 500w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-800.jpg 800w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-1080.jpg 1080w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-1600.jpg 1600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-2000.jpg 2000w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-2600.jpg 2600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-3200.jpg 3200w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash.jpg 5571w" class="recipe_carousel-img"/>
-                                        </div>
-                                    </div>
-                                    <div class="splide__slide">
-                                        <div class="recipe_carousel-img-parent">
-                                            <img src="https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash.jpg" loading="lazy" alt="" sizes="100vw" srcset="https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-500.jpg 500w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-800.jpg 800w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-1080.jpg 1080w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-1600.jpg 1600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-2000.jpg 2000w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-2600.jpg 2600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash.jpg 3853w" class="recipe_carousel-img"/>
-                                        </div>
-                                    </div>
-                                    <div class="splide__slide">
-                                        <div class="recipe_carousel-img-parent">
-                                            <img src="https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash.jpg" loading="lazy" alt="" sizes="100vw" srcset="https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-500.jpg 500w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-800.jpg 800w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-1080.jpg 1080w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-1600.jpg 1600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-2000.jpg 2000w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-2600.jpg 2600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash.jpg 4000w" class="recipe_carousel-img"/>
-                                        </div>
-                                    </div>
-                                    <div class="splide__slide">
-                                        <div class="recipe_carousel-img-parent">
-                                            <img src="https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash.jpg" loading="lazy" alt="" sizes="100vw" srcset="https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-500.jpg 500w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-800.jpg 800w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-1080.jpg 1080w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-1600.jpg 1600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-2000.jpg 2000w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-2600.jpg 2600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-3200.jpg 3200w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash.jpg 5610w" class="recipe_carousel-img"/>
-                                        </div>
-                                    </div>
-                                    <div class="splide__slide">
-                                        <div class="recipe_carousel-img-parent">
-                                            <img src="https://assets.website-files.com/642691ec1624b48a47d8901c/642db9598d2e266e18f1e4f2_frogses-production-b9D4AbZOI24-unsplash.jpg" loading="lazy" alt="" sizes="100vw" srcset="https://assets.website-files.com/642691ec1624b48a47d8901c/642db9598d2e266e18f1e4f2_frogses-production-b9D4AbZOI24-unsplash-p-500.jpg 500w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9598d2e266e18f1e4f2_frogses-production-b9D4AbZOI24-unsplash-p-800.jpg 800w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9598d2e266e18f1e4f2_frogses-production-b9D4AbZOI24-unsplash-p-1080.jpg 1080w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9598d2e266e18f1e4f2_frogses-production-b9D4AbZOI24-unsplash-p-1600.jpg 1600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9598d2e266e18f1e4f2_frogses-production-b9D4AbZOI24-unsplash-p-2000.jpg 2000w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9598d2e266e18f1e4f2_frogses-production-b9D4AbZOI24-unsplash-p-2600.jpg 2600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9598d2e266e18f1e4f2_frogses-production-b9D4AbZOI24-unsplash-p-3200.jpg 3200w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9598d2e266e18f1e4f2_frogses-production-b9D4AbZOI24-unsplash.jpg 6000w" class="recipe_carousel-img"/>
-                                        </div>
-                                    </div>
-                                    <div class="splide__slide">
-                                        <div class="recipe_carousel-img-parent">
-                                            <img src="https://assets.website-files.com/642691ec1624b48a47d8901c/642dd2b1c0aa372bca5a8c7a_frogses-production-tY-ZGcf5ePE-unsplash%20(1).jpg" loading="lazy" alt="" sizes="100vw" srcset="https://assets.website-files.com/642691ec1624b48a47d8901c/642dd2b1c0aa372bca5a8c7a_frogses-production-tY-ZGcf5ePE-unsplash%20(1)-p-500.jpg 500w, https://assets.website-files.com/642691ec1624b48a47d8901c/642dd2b1c0aa372bca5a8c7a_frogses-production-tY-ZGcf5ePE-unsplash%20(1)-p-800.jpg 800w, https://assets.website-files.com/642691ec1624b48a47d8901c/642dd2b1c0aa372bca5a8c7a_frogses-production-tY-ZGcf5ePE-unsplash%20(1)-p-1080.jpg 1080w, https://assets.website-files.com/642691ec1624b48a47d8901c/642dd2b1c0aa372bca5a8c7a_frogses-production-tY-ZGcf5ePE-unsplash%20(1)-p-1600.jpg 1600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642dd2b1c0aa372bca5a8c7a_frogses-production-tY-ZGcf5ePE-unsplash%20(1)-p-2000.jpg 2000w, https://assets.website-files.com/642691ec1624b48a47d8901c/642dd2b1c0aa372bca5a8c7a_frogses-production-tY-ZGcf5ePE-unsplash%20(1)-p-2600.jpg 2600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642dd2b1c0aa372bca5a8c7a_frogses-production-tY-ZGcf5ePE-unsplash%20(1)-p-3200.jpg 3200w, https://assets.website-files.com/642691ec1624b48a47d8901c/642dd2b1c0aa372bca5a8c7a_frogses-production-tY-ZGcf5ePE-unsplash%20(1).jpg 6000w" class="recipe_carousel-img"/>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="recipe_hero-img-single w-condition-invisible">
-                        <div class="padding-global">
-                            <div class="container-large">
-                                <div class="recipe_hero-img-row">
-                                    <div id="w-node-f50e8a1c-25c7-eb86-2ea2-20402e42d3a2-9b536735" class="recipe-img-grid-block img-1">
-                                        <div class="noverflow">
-                                            <div class="stroke-all">
-                                                <div class="img-parent-relative aspect-16-9">
-                                                    <img src="https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash.jpg" loading="lazy" alt="Strawberry Sponge Cake" sizes="(max-width: 479px) 92vw, (max-width: 767px) 94vw, 91vw" srcset="https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-500.jpg 500w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-800.jpg 800w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-1080.jpg 1080w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-1600.jpg 1600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-2000.jpg 2000w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-2600.jpg 2600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash-p-3200.jpg 3200w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db940d6217bb2bf8b3c30_frogses-production-DthdbM8wccA-unsplash.jpg 5571w" class="img-cover absolute"/>
+                                    {% if image_urls and image_urls|length > 0 %}
+                                        {% for url in image_urls %}
+                                            <div class="splide__slide">
+                                                <div class="recipe_carousel-img-parent" style="display: flex; justify-content: center;">
+                                                    <img src="{{ url }}" loading="lazy" alt="" sizes="100vw" style="height: 100%;"/>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="recipe_hero-img-row">
-                                    <div class="recipe-img-grid-block img-2">
-                                        <div class="noverflow">
-                                            <div class="stroke-all">
-                                                <div class="img-parent-relative aspect-16-9">
-                                                    <img src="https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash.jpg" loading="lazy" alt="Strawberry Sponge Cake" sizes="100vw" srcset="https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-500.jpg 500w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-800.jpg 800w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-1080.jpg 1080w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-1600.jpg 1600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-2000.jpg 2000w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash-p-2600.jpg 2600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9432db5f762757a44d0_frogses-production-aOQ56B87v1E-unsplash.jpg 3853w" class="img-cover absolute"/>
-                                                </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="splide__slide">
+                                            <div class="recipe_carousel-img-parent" style="display: flex; justify-content: center;">
+                                                <img src="../static/images/food_image_empty.png" loading="lazy" alt="" sizes="100vw" style="height: 100%;"/>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div class="recipe-img-grid-block img-2">
-                                        <div class="noverflow">
-                                            <div class="stroke-all">
-                                                <div class="img-parent-relative aspect-16-9">
-                                                    <img src="https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash.jpg" loading="lazy" alt="Strawberry Sponge Cake" sizes="100vw" srcset="https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-500.jpg 500w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-800.jpg 800w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-1080.jpg 1080w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-1600.jpg 1600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-2000.jpg 2000w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash-p-2600.jpg 2600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db945fe8dbe09854cdc3d_frogses-production-YaEXTX96hQ4-unsplash.jpg 4000w" class="img-cover absolute"/>
-                                                </div>
+                                    {% endif %}
+                                    {% for url in video_urls %}
+                                        <div class="splide__slide">
+                                            <div class="recipe_carousel-img-parent" style="display: flex; justify-content: center;">
+                                                <iframe src="{{ url }}" 
+                                                    frameborder="0" 
+                                                    allow="autoplay; fullscreen; picture-in-picture" 
+                                                    allowfullscreen>
+                                                </iframe>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div class="recipe-img-grid-block img-2">
-                                        <div class="noverflow">
-                                            <div class="stroke-all">
-                                                <div class="img-parent-relative aspect-16-9">
-                                                    <img src="https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash.jpg" loading="lazy" alt="Strawberry Sponge Cake" sizes="100vw" srcset="https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-500.jpg 500w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-800.jpg 800w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-1080.jpg 1080w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-1600.jpg 1600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-2000.jpg 2000w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-2600.jpg 2600w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash-p-3200.jpg 3200w, https://assets.website-files.com/642691ec1624b48a47d8901c/642db9491e989fc5d7c8cc3f_frogses-production-iFF_np6Y5Yo-unsplash.jpg 5610w" class="img-cover absolute"/>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    {% endfor %}
                                 </div>
                             </div>
                         </div>
@@ -420,21 +180,10 @@
         <script src="https://assets.website-files.com/64268a301624b45c09d82934/js/webflow.86597fce2.js" type="text/javascript"></script>
         <script src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
 
-<script>
-  let splide = new Splide( '.splide', {
-  type: 'loop',
-  fixedWidth: '28.125rem',
-  fixedHeight: '37.5rem',
-  drag: 'free',
-  pagination: false,
-  arrows: false,
-  breakpoints: {
-		479: {
-			fixedWidth: '16.5rem',
-  		fixedHeight: '22rem'
-		},
-  }
-  }
-  );
-  splide.mount();
-</script></body></html>
+        <script>
+           
+            var splide = new Splide( '.splide');
+            splide.mount();
+        </script>
+    </body>
+</html>

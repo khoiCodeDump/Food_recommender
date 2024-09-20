@@ -53,7 +53,7 @@ def create_database(app):
     
                 steps_list = '|'.join(steps_list)
                 
-                recipe = Recipe(name = row["name"], recipe_id = int(row["id"]), cook_time = int(row["minutes"]),steps = steps_list, desc = row["description"])
+                recipe = Recipe(name = row["name"], cook_time = int(row["minutes"]),steps = steps_list, desc = row["description"])
                 
                 db_tag_list = []
                 db_ingredient_list = []
@@ -69,15 +69,15 @@ def create_database(app):
                     recipe.ingredients.append(db_ingredient)
                     
                 for tag in tags_list:
-                    if tag not in ingredients:
-                        if tag not in tags:
-                            db_tag = Tag(name=tag)
-                            tags[tag] = db_tag
-                            db_tag_list = db_tag_list + [db_tag]
-                        else:
-                            db_tag = tags[tag]
-                            
-                        recipe.tags.append(db_tag)
+                    # if tag not in ingredients:
+                    if tag not in tags:
+                        db_tag = Tag(name=tag)
+                        tags[tag] = db_tag
+                        db_tag_list = db_tag_list + [db_tag]
+                    else:
+                        db_tag = tags[tag]
+                        
+                    recipe.tags.append(db_tag)
 
                 db.session.add_all(db_tag_list)
                 db.session.add_all(db_ingredient_list)
