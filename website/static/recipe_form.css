@@ -67,7 +67,6 @@ body {
     font-family: 'Roboto Mono', sans-serif;
     line-height: 1.42857143;
     color: #333333;
-    vertical-align: middle;
     background-color: #e7e8de;
 }
 .text-field:hover {

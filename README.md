@@ -1,5 +1,5 @@
 # Food_recommender
-## Set up & Installation
+<!-- ## Set up & Installation
 
 Make sure you have the latest version of Python installed.
 
@@ -18,5 +18,11 @@ python3 main.py
 ```
 
 ## Viewing the application
-Go to http://127.0.0.1:5000
+Go to http://127.0.0.1:5000 -->
+
+A website all about food recipes!
+
+## Technology used
+Frontend: HTML, CSS, and Javascript, jinja templates
+Backend: Python flask sqlite3 with flask-sqlalchemy
 
