@@ -1,5 +1,5 @@
 <!DOCTYPE html><!-- This site was created in Webflow. https://www.webflow.com --><!-- Last Published: Wed Apr 05 2023 20:14:45 GMT+0000 (Coordinated Universal Time) -->
-<html data-wf-domain="simple-recipe-book.webflow.io" data-wf-page="642691eda75f4e539b536735" data-wf-site="64268a301624b45c09d82934" data-wf-status="1">
+<html>
     <head>
         <meta charset="utf-8"/>
         <title>Simple Recipe Book</title>
@@ -39,6 +39,12 @@
                         <a href="/profile" aria-current="page" class="nav_link-block w-inline-block w--current">
                             <div>Profile</div>
                         </a>
+                        <!-- Add the edit and delete buttons here -->
+                        <div class="pad-right" style="padding-right: 40px;"></div>
+                        <div class="nav_link-block w-inline-block w--current">
+                            <button class="edit-btn" style="background-color: green; color: white; border: none; padding: 5px 10px; margin-right: 5px; cursor: pointer;">Edit</button>
+                            <button class="delete-btn" style="background-color: red; color: white; border: none; padding: 5px 10px; cursor: pointer;">Delete</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -98,18 +104,10 @@
                                                     <div>{{recipe_info.desc}}</div>
                                                 </div>
                                                 <div class="recipe_info">
-                                                    <!-- <div class="recipe_info-block">
-                                                        <div class="text-style-label">Prep time</div>
-                                                        <div>30</div>
-                                                    </div> -->
                                                     <div class="recipe_info-block">
                                                         <div class="text-style-label">Cook time</div>
                                                         <div>{{recipe_info.cook_time}}</div>
                                                     </div>
-                                                    <!-- <div class="recipe_info-block">
-                                                        <div class="text-style-label">Serves</div>
-                                                        <div>8</div>
-                                                    </div> -->
                                                 </div>
                                             </div>
                                         </div>
@@ -184,6 +182,32 @@
            
             var splide = new Splide( '.splide');
             splide.mount();
+
+            document.addEventListener('DOMContentLoaded', function() {
+                // Extract recipe ID from URL
+                const urlParts = window.location.pathname.split('/');
+                const recipeId = urlParts[urlParts.length - 1];
+
+                document.body.addEventListener('click', function(event) {
+                    if (event.target.classList.contains('edit-btn')) {
+                        console.log('Edit recipe:', recipeId);
+                        window.location.href = `/post_recipe?recipe_id=${recipeId}`;
+                    } else if (event.target.classList.contains('delete-btn')) {
+                        console.log('Delete recipe:', recipeId);
+                        if (confirm('Are you sure you want to delete this recipe?')) {
+                            fetch("/delete_recipe", {
+                                method: "POST",
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ recipe: recipeId }),
+                            }).then((_res) => {
+                                window.location.href = "/profile";
+                            });
+                        }
+                    }
+                });
+            });
         </script>
     </body>
 </html>

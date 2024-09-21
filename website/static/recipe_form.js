@@ -172,23 +172,26 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
-    // Log formData contents
-    for (let [key, value] of formData.entries()) {
-      console.log(key, value);
-    }
-
     // Send the form data to the server
     Promise.all(Array.from(formData.values()).filter(value => value instanceof Promise))
       .then(() => {
-        console.log("Sending form data to server...");
         fetch(form.action, {
           method: 'POST',
-          body: formData
+          body: formData,
+          redirect: 'follow' // This tells fetch to follow redirects
         }).then(response => {
           if (response.ok) {
-            console.log("Form submission successful");
-            window.location.href = '/profile';  // Redirect to profile page on success
+            // Check if the response is a redirect
+            if (response.redirected) {
+              window.location.href = response.url; // Go to the URL the server redirected to
+            } else {
+              // Handle non-redirect successful response
+              console.log('Form submitted successfully');
+              // Optionally, you can redirect to a default page if no redirect was received
+              // window.location.href = '/profile';
+            }
           } else {
+            // Handle error responses
             console.error('Form submission failed');
           }
         }).catch(error => {

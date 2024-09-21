@@ -243,7 +243,14 @@ body {
     width: 31%;
     height: 120px;
   }
-  
+  /* For tablets and phones */
+    @media screen and (max-width: 768px) {
+    .preview-item {
+      width: 100%;
+      height: auto; 
+      margin-bottom: 10px; 
+    }
+  }
   .preview-item img,
   .preview-item video {
     width: 100%;

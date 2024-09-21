@@ -155,7 +155,7 @@ def post_recipe():
             recipe.ingredients.append(queried_ing)
 
         db.session.commit()
-        return redirect(url_for('views.profile'))
+        return redirect(url_for('views.get_recipe', meal_id=recipe.id))
     
     # GET request
     recipe_id = request.args.get('recipe_id')

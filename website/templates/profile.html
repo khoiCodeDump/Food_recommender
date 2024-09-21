@@ -1,7 +1,8 @@
-{% include 'partials/header.html' %}
 <head>
     <link rel="stylesheet" href="../static/profile.css">
 </head>
+{% include 'partials/header.html' %}
+
 <main class="main-wrapper">
     <a href="{{ url_for('auth.logout') }}" class="logout-button">Log Out</a>
     <div class="section_home-header">
@@ -12,16 +13,21 @@
                         <h1 class="heading">Personal recipes</h1>
                     </div>
                     <div id="w-node-_57328808-bdf1-29f3-b381-f80a5ed9dcac-c4d82939" class="grid-block hide-mobile-landscape">
-                        <div class="home-hero_intro-text-wrapper">
-                            <div class="text-block">An archive of personal recipes
-                                <br/> 
-                                <br/>
-                            </div>
-                            <a href="/post_recipe" class="link-block-with-icon w-inline-block">Add a recipe</a>
-                            
+                        <div class="text-block">An archive of personal recipes
+                            <br/> 
+                            <br/>
                         </div>
+                        <a href="/post_recipe" class="link-block-with-icon w-inline-block">Add a recipe</a>
                     </div>
                     <div id="w-node-_9dda9300-6b32-118f-4adf-cb1899a9b9ee-c4d82939" class="grid-block">
+                        <div class="text-block mobile-only">An archive of personal recipes
+                            <br/> 
+                            <br/>
+                        </div>
+                        <div class="mobile-only">
+                            <a href="/post_recipe" class="link-block-with-icon w-inline-block ">Add a recipe</a>
+                        </div>
+                        <br/> 
                         <div  class="recipe-search-form-block w-form">
                             <form id="email-form" name="email-form" action="/search" data-name="Email Form" method="get" class="form" autocomplete="off">
                                 <div class="autocomplete">
