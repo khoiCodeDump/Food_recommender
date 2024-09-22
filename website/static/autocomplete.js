@@ -27,6 +27,7 @@ function autocomplete(inp, tags_inp, ingredients_inp) {
         if (addItemComponent(selectedValue, type, inp)) {
           inp.value = "";
           closeAllLists();
+          inp.focus(); // Add this line to set focus back to the input
         }
       });
       a.appendChild(b);

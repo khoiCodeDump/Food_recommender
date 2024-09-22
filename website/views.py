@@ -140,12 +140,9 @@ def post_recipe():
         recipe.tags = []
         recipe.ingredients = []
 
-        tags = set(request.form.get('Tags', '').split(','))
-        ingredients = set(request.form.get('Ingredients', '').split(','))
-
         # Remove any empty strings
-        tags = {tag.strip() for tag in tags if tag.strip()}
-        ingredients = {ingredient.strip() for ingredient in ingredients if ingredient.strip()}
+        tags = {tag.strip() for tag in set(request.form.get('Tags', '').split(',')) if tag.strip()}
+        ingredients = {ingredient.strip() for ingredient in set(request.form.get('Ingredients', '').split(',')) if ingredient.strip()}
 
         # Process tags
         for tag_name in tags:
