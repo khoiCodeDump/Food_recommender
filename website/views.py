@@ -1,8 +1,9 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, make_response, send_from_directory, abort
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, make_response, abort
 from flask_login import login_required, current_user
-from .models import User, Recipe, Tag, Ingredient, Image, Video
+from .models import Recipe, Tag, Ingredient, Image, Video
 from . import db
 from werkzeug.utils import secure_filename
+from .utils import allowed_file, search_recipes, serve_media
 import json
 import pickle
 import os
@@ -11,8 +12,6 @@ import bleach
 
 views = Blueprint('views', __name__)
 quantity = 45
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov', 'avi'}
-
 
 @views.route('/', methods=['GET', 'POST'])
 @login_required
@@ -177,26 +176,13 @@ def post_recipe():
     existing_video = Video.query.filter_by(recipe_id=recipe.id).first()
     return render_template("post_recipe_form.html", user=current_user, recipe=recipe, tags=Tag.query.all(), ingredients=Ingredient.query.all(), existing_images=existing_images, existing_video=existing_video)
 
-# Add this helper function
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
 @views.route('/images/<path:filename>', methods=['GET'])
 def serve_image(filename):
-    media_dir = os.path.join( os.path.join('../data', str(current_user.id)), 'images')
-    try:
-        return send_from_directory(media_dir, filename)
-    except FileNotFoundError as e:
-        abort(404)
+    return serve_media(filename, 'images')
 
 @views.route('/videos/<path:filename>', methods=['GET'])
 def serve_video(filename):
-    media_dir = os.path.join( os.path.join('../data', str(current_user.id)), 'videos')
-    try:
-        return send_from_directory(media_dir, filename)
-    except FileNotFoundError as e:
-        abort(404)
+    return serve_media(filename, 'videos')
 
 @views.route('/recipes/<meal_id>', methods=['GET'])
 def get_recipe(meal_id):
@@ -243,19 +229,9 @@ def get_recipe(meal_id):
 
 @views.route('/search', methods=['GET'])
 def search():
-    tags_res = Tag.query.all()
-    tags = set()
-    for tag in tags_res:
-        tags.add(tag.name)
 
-    ingredients_res = Ingredient.query.all()
-    ingredients = set()
-    for ingredient in ingredients_res:
-        ingredients.add(ingredient.name)
+    search_field = bleach.clean(request.args.get("search-field"))
 
-
-    search_field = request.args.get('search-field')
-        
     if search_field == '':
         return redirect(url_for('home'))
 
@@ -264,84 +240,44 @@ def search():
     
     result = None
     recipes = set()
-    clone_recipe_ids = set()
+
+    tags = {tag.strip() for tag in set(request.form.get('Tags', '').split(',')) if tag.strip()}
+    ingredients = {ingredient.strip() for ingredient in set(request.form.get('Ingredients', '').split(',')) if ingredient.strip()}
+    
+    for tag in tags:
+        tag_res = Tag.query.filter(Tag.name==tag).first()
+        result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
+
+    for ingredient in ingredients:
+        ingredient_res = Ingredient.query.filter(Ingredient.name==ingredient).first()
+        result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
     
     for field in search_field:
         field = field.strip()
-        if field in ingredients:
-            ingredient_results = Ingredient.query.filter(Ingredient.name==field).first()
-            
-            if len(recipes) == 0:
-                for recipe in ingredient_results.recipes:
-                     recipes.add(recipe.id)
-            else:
-                for recipe in ingredient_results.recipes:
-                    if recipe.id in recipes:
-                        clone_recipe_ids.add(recipe.id)
+        
+        ingredient_res = Ingredient.query.filter(Ingredient.name==field).first()
+        result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
 
-                recipes = clone_recipe_ids
-                clone_recipe_ids = set()
+        tag_res = Tag.query.filter(Tag.name==field).first()
+        result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
 
-            if result ==None:
-                result = Recipe.query.filter(Recipe.id.in_(list(recipes)))
-            else:
-                result = result.filter(Recipe.id.in_(list(recipes)))
-                
-        elif field in tags:
-            tag_results = Tag.query.filter(Tag.name==field).first()
-            
-            if len(recipes) == 0:
-                for recipe in tag_results.recipes:
-                     recipes.add(recipe.id)
-            else:
-                for recipe in tag_results.recipes:
-                    if recipe.id in recipes:
-                        clone_recipe_ids.add(recipe.id)
+        name_res = Recipe.query.filter(Recipe.name.contains(field))
+        result = search_recipes(recipes=recipes, query_res=name_res, result=result)
 
-                recipes = clone_recipe_ids
-                clone_recipe_ids = set()
-
-            if result ==None:
-                result = Recipe.query.filter(Recipe.id.in_(list(recipes)))
-            else:
-                result = result.filter(Recipe.id.in_(list(recipes)))
-                    
-        else:
-            search_results = Recipe.query.filter(Recipe.name.contains(field))
-            
-            if len(recipes) == 0:
-                for recipe in search_results:
-                     recipes.add(recipe.id)
-            else:
-                #the clone is the union of recipe_ids in both separate sets
-                for recipe in search_results:
-                    if recipe.id in recipes:
-                        clone_recipe_ids.add(recipe.id)
-                
-                recipes = clone_recipe_ids
-                clone_recipe_ids = set()
-            
-            if result ==None:
-                result = Recipe.query.filter(Recipe.id.in_(recipes))
-            else:
-                result = result.filter(Recipe.id.in_(recipes))
-                    
-
-    search_recipes = []
+    _recipes = []
     for result_recipe in result:
-        search_recipes.append(result_recipe.id)
+        _recipes.append(result_recipe.id)
 
     if not os.path.exists('data/' + str(current_user.id)):
         os.mkdir('data/' + str(current_user.id))
 
     try:
         with open('data/' + str(current_user.id) + '/search_result.pkl', 'wb') as f:
-            pickle.dump(search_recipes, f)
+            pickle.dump(_recipes, f)
     except IOError as e:
         print(f"Error writing search results: {e}")
                 
     data = {"route": 2}
-    # return redirect( url_for('views.load_search', search_field=",".join(search_field)), code=302)
     return render_template("search_view.html", data=data, search_field=search_field, tags=Tag.query.all(), ingredients=Ingredient.query.all())
 
 @views.route('/load_search', methods=['GET'])
