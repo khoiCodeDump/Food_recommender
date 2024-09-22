@@ -29,13 +29,13 @@
                   
                   <label>If there are no search suggestions, the search items are not in the database and will be added</label>
                   <label for="Tags">Tags</label>
-                  <div class="autocomplete" >
+                  <div class="autocomplete input-container" >
                     <input type="text" class="text-field cc-contact-field w-input" maxlength="256" name="Tags" id="Tags" required="" autocomplete="off" value="{% if recipe and recipe.tags %}{% for tag in recipe.tags %}{{ tag.name }}{% if not loop.last %},{% endif %}{% endfor %}{% endif %}"/>
                   
                   </div>
                   
                   <label for="Ingredients">Ingredients</label>
-                  <div class="autocomplete">
+                  <div class="autocomplete input-container">
                     <input type="text" class="text-field cc-contact-field w-input" maxlength="256" name="Ingredients" id="Ingredients" required=""  autocomplete="off" value="{% if recipe and recipe.ingredients %}{% for ingredient in recipe.ingredients %}{{ ingredient.name }}{% if not loop.last %},{% endif %}{% endfor %}{% endif %}"/>
                   </div>
                   

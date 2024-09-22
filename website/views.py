@@ -14,12 +14,10 @@ views = Blueprint('views', __name__)
 quantity = 45
 
 @views.route('/', methods=['GET', 'POST'])
-@login_required
 def home():
     data = {"route": 0}
     
     return render_template("home.html", data=data, tags=Tag.query.all(), ingredients= Ingredient.query.all() )
-
 
 @views.route('/load', methods=['GET'])
 def load():
@@ -39,13 +37,145 @@ def load():
 
     return res
 
+@views.route('/images/<path:filename>', methods=['GET'])
+def serve_image(filename):
+    return serve_media(filename, 'images')
+
+@views.route('/videos/<path:filename>', methods=['GET'])
+def serve_video(filename):
+    return serve_media(filename, 'videos')
+
+@views.route('/recipes/<meal_id>', methods=['GET'])
+def get_recipe(meal_id):
+    cur_recipe = Recipe.query.get(meal_id)
+    temp = cur_recipe.steps
+    typeList = "ol"
+    if temp[0] >= "0" and temp[0] <= "9":
+        typeList = "ul"
     
+    # Get all valid image URLs for this recipe
+    image_urls = []
+    images_to_remove = []
+    for image in cur_recipe.images:
+        if os.path.exists(image.url):
+            image_urls.append(url_for('views.serve_image', filename=image.filename))
+        else:
+            images_to_remove.append(image)
+    
+    # Get all valid video URLs for this recipe
+    video_urls = []
+    videos_to_remove = []
+    for video in cur_recipe.videos:
+        if os.path.exists(video.url):
+            video_urls.append(url_for('views.serve_video', filename=video.filename))
+        else:
+            videos_to_remove.append(video)
+    
+    # Update the recipe references by removing non-existent files
+    if images_to_remove or videos_to_remove:
+        for image in images_to_remove:
+            cur_recipe.images.remove(image)
+            db.session.delete(image)
+        for video in videos_to_remove:
+            cur_recipe.videos.remove(video)
+            db.session.delete(video)
+        db.session.commit()
+
+    return render_template("recipe_base.html", 
+                           user=current_user, 
+                           recipe_info=cur_recipe, 
+                           typeList=typeList,
+                           image_urls=image_urls,
+                           video_urls=video_urls)
+
+@views.route('/search', methods=['POST'])
+def search():
+    tags = {tag.strip() for tag in set(request.form.get('Tags', '').split(',')) if tag.strip()}
+    ingredients = {ingredient.strip() for ingredient in set(request.form.get('Ingredients', '').split(',')) if ingredient.strip()}
+    search_field = bleach.clean(request.form.get("search-field"))
+
+    if search_field == '' and not tags and not ingredients:
+        # Redirect to the referring page or to the home page if there's no referrer
+        return redirect(request.referrer or url_for('views.home'))
+
+    # search_field = re.findall(r'\w+', search_field)
+    search_field = search_field.split(",")
+    
+    result = None
+    recipes = set()
+    
+    for tag in tags:
+        tag_res = Tag.query.filter(Tag.name==tag).first()
+        result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
+
+    for ingredient in ingredients:
+        ingredient_res = Ingredient.query.filter(Ingredient.name==ingredient).first()
+        result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
+    
+    for field in search_field:
+        field = field.strip()
+        
+        ingredient_res = Ingredient.query.filter(Ingredient.name==field).first()
+        if ingredient_res:
+            result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
+            continue
+
+        tag_res = Tag.query.filter(Tag.name==field).first()
+        if tag_res:
+            result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
+            continue
+        
+        name_res = Recipe.query.filter(Recipe.name.contains(field))
+        if name_res:        
+            result = search_recipes(recipes=recipes, query_res=name_res, result=result)
+            continue
+
+    _recipes = []
+    for result_recipe in result:
+        print(result_recipe.id)
+        _recipes.append(result_recipe.id)
+
+    if not os.path.exists('data/' + str(current_user.id)):
+        os.mkdir('data/' + str(current_user.id))
+
+    try:
+        with open('data/' + str(current_user.id) + '/search_result.pkl', 'wb') as f:
+            pickle.dump(_recipes, f)
+    except IOError as e:
+        print(f"Error writing search results: {e}")
+                
+    data = {"route": 2}
+    return render_template("search_view.html", data=data, search_field=search_field, tags=Tag.query.all(), ingredients=Ingredient.query.all())
+
+@views.route('/load_search', methods=['GET'])
+def load_search():
+
+    time.sleep(0.2)
+    count = request.args.get('count', 0, type=int)
+    try:
+        with open('data/' + str(current_user.id) + '/search_result.pkl', 'rb') as f:
+            recipe_list = pickle.load(f)
+
+        res = Recipe.query.filter(Recipe.id.in_(recipe_list))
+        res = res[count: count + quantity]
+        data = {}
+        for stuff in res:
+            data[stuff.id] = stuff.name
+        res = make_response(data)
+    except:
+        print("No more posts")
+        res = make_response(jsonify({}), 200)
+
+    return res
+
 @views.route('/profile', methods=['GET'])
+@login_required
 def profile():
     data = {"route": 1}
     return render_template("profile.html", data=data, tags=Tag.query.all(), ingredients= Ingredient.query.all() ) 
 
 @views.route('/load_profile', methods=['GET'])
+@login_required
 def load_profile():
     time.sleep(0.2)
     count = request.args.get('count', 0, type=int)
@@ -62,7 +192,6 @@ def load_profile():
         res = make_response(jsonify({}), 200)
 
     return res
-
     
 @views.route('/post_recipe', methods=['GET', 'POST'])
 @login_required
@@ -176,132 +305,8 @@ def post_recipe():
     existing_video = Video.query.filter_by(recipe_id=recipe.id).first()
     return render_template("post_recipe_form.html", user=current_user, recipe=recipe, tags=Tag.query.all(), ingredients=Ingredient.query.all(), existing_images=existing_images, existing_video=existing_video)
 
-@views.route('/images/<path:filename>', methods=['GET'])
-def serve_image(filename):
-    return serve_media(filename, 'images')
-
-@views.route('/videos/<path:filename>', methods=['GET'])
-def serve_video(filename):
-    return serve_media(filename, 'videos')
-
-@views.route('/recipes/<meal_id>', methods=['GET'])
-def get_recipe(meal_id):
-    cur_recipe = Recipe.query.get(meal_id)
-    temp = cur_recipe.steps
-    typeList = "ol"
-    if temp[0] >= "0" and temp[0] <= "9":
-        typeList = "ul"
-    
-    # Get all valid image URLs for this recipe
-    image_urls = []
-    images_to_remove = []
-    for image in cur_recipe.images:
-        if os.path.exists(image.url):
-            image_urls.append(url_for('views.serve_image', filename=image.filename))
-        else:
-            images_to_remove.append(image)
-    
-    # Get all valid video URLs for this recipe
-    video_urls = []
-    videos_to_remove = []
-    for video in cur_recipe.videos:
-        if os.path.exists(video.url):
-            video_urls.append(url_for('views.serve_video', filename=video.filename))
-        else:
-            videos_to_remove.append(video)
-    
-    # Update the recipe references by removing non-existent files
-    if images_to_remove or videos_to_remove:
-        for image in images_to_remove:
-            cur_recipe.images.remove(image)
-            db.session.delete(image)
-        for video in videos_to_remove:
-            cur_recipe.videos.remove(video)
-            db.session.delete(video)
-        db.session.commit()
-
-    return render_template("recipe_base.html", 
-                           user=current_user, 
-                           recipe_info=cur_recipe, 
-                           typeList=typeList,
-                           image_urls=image_urls,
-                           video_urls=video_urls)
-
-@views.route('/search', methods=['GET'])
-def search():
-
-    search_field = bleach.clean(request.args.get("search-field"))
-
-    if search_field == '':
-        return redirect(url_for('home'))
-
-    # search_field = re.findall(r'\w+', search_field)
-    search_field = search_field.split(",")
-    
-    result = None
-    recipes = set()
-
-    tags = {tag.strip() for tag in set(request.form.get('Tags', '').split(',')) if tag.strip()}
-    ingredients = {ingredient.strip() for ingredient in set(request.form.get('Ingredients', '').split(',')) if ingredient.strip()}
-    
-    for tag in tags:
-        tag_res = Tag.query.filter(Tag.name==tag).first()
-        result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
-
-    for ingredient in ingredients:
-        ingredient_res = Ingredient.query.filter(Ingredient.name==ingredient).first()
-        result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
-    
-    for field in search_field:
-        field = field.strip()
-        
-        ingredient_res = Ingredient.query.filter(Ingredient.name==field).first()
-        result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
-
-        tag_res = Tag.query.filter(Tag.name==field).first()
-        result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
-
-        name_res = Recipe.query.filter(Recipe.name.contains(field))
-        result = search_recipes(recipes=recipes, query_res=name_res, result=result)
-
-    _recipes = []
-    for result_recipe in result:
-        _recipes.append(result_recipe.id)
-
-    if not os.path.exists('data/' + str(current_user.id)):
-        os.mkdir('data/' + str(current_user.id))
-
-    try:
-        with open('data/' + str(current_user.id) + '/search_result.pkl', 'wb') as f:
-            pickle.dump(_recipes, f)
-    except IOError as e:
-        print(f"Error writing search results: {e}")
-                
-    data = {"route": 2}
-    return render_template("search_view.html", data=data, search_field=search_field, tags=Tag.query.all(), ingredients=Ingredient.query.all())
-
-@views.route('/load_search', methods=['GET'])
-def load_search():
-
-    time.sleep(0.2)
-    count = request.args.get('count', 0, type=int)
-    try:
-        with open('data/' + str(current_user.id) + '/search_result.pkl', 'rb') as f:
-            recipe_list = pickle.load(f)
-
-        res = Recipe.query.filter(Recipe.id.in_(recipe_list))
-        res = res[count: count + quantity]
-        data = {}
-        for stuff in res:
-            data[stuff.id] = stuff.name
-        res = make_response(data)
-    except:
-        print("No more posts")
-        res = make_response(jsonify({}), 200)
-
-    return res
-
 @views.route('/delete_recipe', methods=['POST'])
+@login_required
 def delete_recipe():
 
     recipe = json.loads(request.data)

@@ -1,9 +1,8 @@
 from . import db
 from flask_login import UserMixin
-from sqlalchemy.sql import func
 from dataclasses import dataclass
 
-table = db.Table('recipe_tag',
+tag_table = db.Table('recipe_tag',
                     db.Column('recipe_id', db.Integer, db.ForeignKey('recipe.id')),
                     db.Column('tag_id', db.Integer, db.ForeignKey('tag.id')),
                     # db.Column('ingredient_id', db.Integer, db.ForeignKey('ingredient.id'))
@@ -20,8 +19,6 @@ class User(db.Model, UserMixin):
     first_name = db.Column(db.String(150))    
     recipe_id = db.relationship('Recipe', backref='user')
 
-
-
 @dataclass
 class Recipe(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -30,12 +27,10 @@ class Recipe(db.Model):
     steps = db.Column(db.Text)
     desc = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    tags = db.relationship('Tag', secondary=table, backref='recipes')
+    tags = db.relationship('Tag', secondary=tag_table, backref='recipes')
     ingredients = db.relationship('Ingredient', secondary=ingredient_table, backref='recipes')
     images = db.relationship('Image', backref='recipe', lazy='dynamic')
     videos = db.relationship('Video', backref='recipe', lazy='dynamic')
-
-
 
 @dataclass
 class Tag(db.Model):

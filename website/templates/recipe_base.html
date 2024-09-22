@@ -42,8 +42,10 @@
                         <!-- Add the edit and delete buttons here -->
                         <div class="pad-right" style="padding-right: 40px;"></div>
                         <div class="nav_link-block w-inline-block w--current">
-                            <button class="edit-btn" style="background-color: green; color: white; border: none; padding: 5px 10px; margin-right: 5px; cursor: pointer;">Edit</button>
-                            <button class="delete-btn" style="background-color: red; color: white; border: none; padding: 5px 10px; cursor: pointer;">Delete</button>
+                            {% if recipe_info.user_id == user.id %}
+                                <button class="edit-btn" style="background-color: green; color: white; border: none; padding: 5px 10px; margin-right: 5px; cursor: pointer;">Edit</button>
+                                <button class="delete-btn" style="background-color: red; color: white; border: none; padding: 5px 10px; cursor: pointer;">Delete</button>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

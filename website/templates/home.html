@@ -29,9 +29,9 @@
                     </div>
                     <div id="w-node-_9dda9300-6b32-118f-4adf-cb1899a9b9ee-c4d82939" class="grid-block">
                         <div  class="recipe-search-form-block w-form">
-                            <form id="email-form" name="email-form" action="/search" data-name="Email Form" method="get" class="form" autocomplete="off">
-                                <div class="autocomplete">
-                                    <input type="text" class="search-field w-input" maxlength="256" name="search-field" placeholder="Search all recipes..." id="field" required=""/>
+                            <form id="email-form" name="email-form" action="/search" data-name="Email Form" method="post" class="form" autocomplete="off">
+                                <div class="autocomplete input-container">
+                                    <input type="text" class="search-field w-input" maxlength="256" name="search-field" placeholder="Search all recipes..." id="field" />
                                 </div>
                             </form>
                         </div>                                    
@@ -70,7 +70,6 @@
                 <div class="padding-section-small">
                     <div class="w-dyn-list">
                         <div id="scroller" fs-cmsfilter-element="list" role="list" class="layout-grid recipe-index w-dyn-items">
-
                             <template id="post_template">
                                 <div id="w-node-_07582615-3f70-6f45-d425-87ba9322aefa-c4d82939" role="listitem" class="recipe_collection-item w-dyn-item">
                                 
@@ -91,3 +90,5 @@
 </main>
 
 {% include 'partials/footer.html' %}
+
+

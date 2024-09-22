@@ -191,23 +191,30 @@ display: none !important;
 }
 a { color: inherit; }
 
+.autocomplete {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
 .autocomplete-items {
-    position: absolute;
-    border: 1px solid #d4d4d4;
-    border-bottom: none;
-    border-top: none;
-    z-index: 99;
-    /*position the autocomplete items to be the same width as the container:*/
-    top: 100%;
-    left: 0;
-    right: 0;
+  position: absolute;
+  border: 1px solid #d4d4d4;
+  z-index: 99;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .autocomplete-items div {
-    padding: 10px;
-    cursor: pointer;
-    background-color: #e7e8de; 
-    border-bottom: 1px solid #d4d4d4; 
+  padding: 10px;
+  cursor: pointer;
+  background-color: #e7e8de; 
+  border-bottom: 1px solid #d4d4d4; 
 }
 
 /*when hovering an item:*/
@@ -261,3 +268,4 @@ a { color: inherit; }
   .remove-item:hover {
     color: #ff1744; /* Darker red on hover */
   }
+

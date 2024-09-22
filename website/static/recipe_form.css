@@ -72,36 +72,7 @@ body {
 .text-field:hover {
     border-color: unset;
 }
-.autocomplete-items {
-    position: absolute;
-    border: 1px solid #d4d4d4;
-    border-bottom: none;
-    border-top: none;
-    z-index: 99;
-    top: 100%;
-    left: 0;
-    right: 0;
-}
-.autocomplete-items div {
-    padding: 10px;
-    cursor: pointer;
-    background-color: #e7e8de; 
-    border-bottom: 1px solid #d4d4d4; 
-}
-.autocomplete-items div:hover {
-    background-color: #e9e9e9; 
-}
-.autocomplete-active {
-    background-color: #e9e9e9 !important; 
-}
-.autocomplete {
-    position: relative;
-    display: inline-block; 
-}
-.scrollable{
-    overflow: auto;
-    height: 200px;
-}
+
 .nav---button {
     line-height: 0;
 }
@@ -288,33 +259,82 @@ body {
     cursor: pointer;
   }
 
-.item-component {
-  display: inline-block;
-  background-color: #f1f1f1;
-  padding: 5px 10px;
-  margin: 5px;
-  border-radius: 20px;
-  font-family: 'Roboto Mono', sans-serif;
-  font-size: 14px;
-}
-
-.item-component[data-type="Tag"] {
-  background-color: #e0f7fa; /* Light blue for tags */
-}
-
-.item-component[data-type="Ingredient"] {
-  background-color: #e8f5e9; /* Light green for ingredients */
-}
-
-.remove-item {
-  background: none;
-  border: none;
-  color: #ff5252; /* A softer red */
-  cursor: pointer;
-  margin-left: 5px;
-  font-weight: bold;
-}
-
-.remove-item:hover {
-  color: #ff1744; /* Darker red on hover */
-}
+  .autocomplete {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+  
+  .autocomplete-items {
+    position: absolute;
+    border: 1px solid #d4d4d4;
+    z-index: 99;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .autocomplete-items div {
+    padding: 10px;
+    cursor: pointer;
+    background-color: #e7e8de; 
+    border-bottom: 1px solid #d4d4d4; 
+  }
+  
+  /*when hovering an item:*/
+  .autocomplete-items div:hover {
+      background-color: #e9e9e9; 
+  }
+  
+  /*when navigating through the items using the arrow keys:*/
+  .autocomplete-active {
+      background-color: #e9e9e9 !important; 
+  }
+  .autocomplete {
+      position: relative;
+      display: inline-block; 
+  }
+  .scrollable{
+      overflow: auto;
+      height: 200px;
+  }
+  
+  .scroll-trigger{
+      display: flex;
+  }
+  .item-component {
+      display: inline-block;
+      background-color: #f1f1f1;
+      padding: 5px 10px;
+      margin: 5px;
+      border-radius: 20px;
+      font-family: 'Roboto Mono', sans-serif;
+      font-size: 14px;
+    }
+    
+    .item-component[data-type="Tag"] {
+      background-color: #e0f7fa; /* Light blue for tags */
+    }
+    
+    .item-component[data-type="Ingredient"] {
+      background-color: #e8f5e9; /* Light green for ingredients */
+    }
+    
+    .remove-item {
+      background: none;
+      border: none;
+      color: #ff5252; /* A softer red */
+      cursor: pointer;
+      margin-left: 5px;
+      font-weight: bold;
+    }
+    
+    .remove-item:hover {
+      color: #ff1744; /* Darker red on hover */
+    }
+  
+  

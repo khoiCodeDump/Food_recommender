@@ -20,7 +20,7 @@ def create_app():
 
     
     app.register_blueprint(views, url_prefix='/')
-    app.register_blueprint(auth, url_prefix='/')
+    app.register_blueprint(auth, url_prefix='/auth')
     
     from .models import User 
 
@@ -59,6 +59,8 @@ def create_database(app):
                 db_ingredient_list = []
                 
                 for ingredient in ingredients_list:
+                    if not ingredient:
+                        continue
                     if ingredient not in ingredients:
                         db_ingredient = Ingredient(name=ingredient)
                         ingredients[ingredient] = db_ingredient
@@ -69,7 +71,8 @@ def create_database(app):
                     recipe.ingredients.append(db_ingredient)
                     
                 for tag in tags_list:
-                    # if tag not in ingredients:
+                    if not tag:
+                        continue
                     if tag not in tags:
                         db_tag = Tag(name=tag)
                         tags[tag] = db_tag
@@ -85,5 +88,4 @@ def create_database(app):
                 db.session.commit()
             
             print('Created Database!')
-            
 

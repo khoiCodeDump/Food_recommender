@@ -60,9 +60,12 @@ function autocomplete(inp, tags_inp, ingredients_inp) {
       currentFocus--;
       addActive(x);
     } else if (e.keyCode == 13) {
-      e.preventDefault();
       if (currentFocus > -1) {
+        e.preventDefault();
         if (x) x[currentFocus].click();
+      } else if (!window.location.pathname.includes('/post_recipe')){
+        updateHiddenFields();  // Add this line
+        this.form.submit();
       }
     }
   });
@@ -121,4 +124,22 @@ function addItemComponent(value, type, inputElement) {
   // Insert the new item component after the input field
   inputElement.parentNode.insertBefore(itemContainer, inputElement.nextSibling);
   return true;  // Return true to indicate the item was successfully added
+}
+
+// Add this new function
+function updateHiddenFields() {
+  const tagsInput = document.createElement('input');
+  tagsInput.type = 'hidden';
+  tagsInput.name = 'Tags';
+  tagsInput.value = Array.from(addedTags).join(',');
+
+  const ingredientsInput = document.createElement('input');
+  ingredientsInput.type = 'hidden';
+  ingredientsInput.name = 'Ingredients';
+  ingredientsInput.value = Array.from(addedIngredients).join(',');
+
+  const form = document.querySelector('form');
+  form.appendChild(tagsInput);
+  form.appendChild(ingredientsInput);
+
 }
