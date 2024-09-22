@@ -1,132 +1,86 @@
-function autocomplete(inp, tags_inp, ingredients_inp) {
-  /*the autocomplete function takes two arguments,
-  the text field element and an array of possible autocompleted values:*/
-  var currentFocus, charindex;
-  /*execute a function when someone writes in the text field:*/
-    inp.addEventListener("input", function(e) {
-      var a, b, i, val = this.value;
-      var array;
-      var counter = 0;
-      /*close any already open lists of autocompleted values*/
-      closeAllLists();
+window.addedTags = new Set();
+window.addedIngredients = new Set();
 
-      array = val.split(',');
-      val = array[array.length - 1].trim();
-      if (!val) { return false;}
-      currentFocus = -1;
-      
-      /*create a DIV element that will contain the items (values):*/
-      a = document.createElement("DIV");
-      a.setAttribute("id", this.id + "autocomplete-list");
-      a.setAttribute("class", "autocomplete-items scrollable");
-      /*append the DIV element as a child of the autocomplete container:*/
-      this.parentNode.appendChild(a);
-      /*for each item in the array...*/
-      // val = val.substr(0, this.selectionStart);
-      
-      for (const key in tags_inp) {
-        const val1 = tags_inp[key].name;
-        /*check if the item starts with the same letters as the text field value:*/
-        if (val1.substr(0, val.length).toUpperCase() == val.toUpperCase()) {
-          /*create a DIV element for each matching element:*/
-          b = document.createElement("DIV");
-          b.innerHTML = "Tag: ";
-          /*make the matching letters bold:*/
-          b.innerHTML += "<strong>" + val1.substr(0, val.length) + "</strong>";
-          b.innerHTML += val1.substr(val.length);
-          /*insert a input field that will hold the current array item's value:*/
-          b.innerHTML += "<input type='hidden' value='" + val1 + "'>";
-          /*execute a function when someone clicks on the item value (DIV element):*/
-          b.addEventListener("click", function(e) {
-              /*insert the value for the autocomplete text field:*/
-              array[array.length-1] = this.getElementsByTagName("input")[0].value;
-              inp.value = array.join(",") ;
-              /*close the list of autocompleted values,
-              (or any other open lists of autocompleted values:*/
-              closeAllLists();
-          });
-          a.appendChild(b);
-          counter++;
-        }
-        
-      }
-      for (const key in ingredients_inp) {
-        const val1 = ingredients_inp[key].name;
-        
-        /*check if the item starts with the same letters as the text field value:*/
-        if (val1.substr(0, val.length).toUpperCase() == val.toUpperCase()) {
-          /*create a DIV element for each matching element:*/
-          b = document.createElement("DIV");
-          b.innerHTML = "Ingredient: ";
-          /*make the matching letters bold:*/
-          b.innerHTML += "<strong>" + val1.substr(0, val.length) + "</strong>";
-          b.innerHTML += val1.substr(val.length);
-          /*insert a input field that will hold the current array item's value:*/
-          b.innerHTML += "<input type='hidden' value='" + val1 + "'>";
-          /*execute a function when someone clicks on the item value (DIV element):*/
-          b.addEventListener("click", function(e) {
-              /*insert the value for the autocomplete text field:*/
-              array[array.length-1] = this.getElementsByTagName("input")[0].value;
-              inp.value = array.join(",") ;
-              /*close the list of autocompleted values,
-              (or any other open lists of autocompleted values:*/
-              closeAllLists();
-          });
-          a.appendChild(b);
-          counter++;
-        }
-        
-      }
-      if(counter==0){
+let addedTags = window.addedTags;
+let addedIngredients = window.addedIngredients;
+
+function autocomplete(inp, tags_inp, ingredients_inp) {
+  var currentFocus;
+  inp.addEventListener("input", function(e) {
+    var a, b, i, val = this.value;
+    closeAllLists();
+    if (!val) { return false;}
+    currentFocus = -1;
+    a = document.createElement("DIV");
+    a.setAttribute("id", this.id + "autocomplete-list");
+    a.setAttribute("class", "autocomplete-items");
+    this.parentNode.appendChild(a);
+    
+    function addSuggestion(item, type) {
+      b = document.createElement("DIV");
+      b.innerHTML = type + ": ";
+      b.innerHTML += "<strong>" + item.substr(0, val.length) + "</strong>";
+      b.innerHTML += item.substr(val.length);
+      b.innerHTML += "<input type='hidden' value='" + item + "'>";
+      b.addEventListener("click", function(e) {
+        const selectedValue = this.getElementsByTagName("input")[0].value;
+        if (addItemComponent(selectedValue, type, inp)) {
+          inp.value = "";
           closeAllLists();
-      }
-  });
-  /*execute a function presses a key on the keyboard:*/
-  inp.addEventListener("keydown", function(e) {
-      var x = document.getElementById(this.id + "autocomplete-list");
-      if (x) x = x.getElementsByTagName("div");
-      if (e.keyCode == 40) {
-        /*If the arrow DOWN key is pressed,
-        increase the currentFocus variable:*/
-        currentFocus++;
-        /*and and make the current item more visible:*/
-        addActive(x);
-      } else if (e.keyCode == 38) { //up
-        /*If the arrow UP key is pressed,
-        decrease the currentFocus variable:*/
-        currentFocus--;
-        /*and and make the current item more visible:*/
-        addActive(x);
-      } else if (e.keyCode == 13) {
-        /*If the ENTER key is pressed, prevent the form from being submitted,*/
-        if (currentFocus > -1) {
-          /*and simulate a click on the "active" item:*/
-            if (x) {
-                e.preventDefault();
-                x[currentFocus].click();
-            }
+        }
+      });
+      a.appendChild(b);
+    }
+
+    if (tags_inp) {
+      for (const key in tags_inp) {
+        if (tags_inp[key].name.substr(0, val.length).toUpperCase() == val.toUpperCase()) {
+          addSuggestion(tags_inp[key].name, "Tag");
         }
       }
+    }
+
+    if (ingredients_inp) {
+      for (const key in ingredients_inp) {
+        if (ingredients_inp[key].name.substr(0, val.length).toUpperCase() == val.toUpperCase()) {
+          addSuggestion(ingredients_inp[key].name, "Ingredient");
+        }
+      }
+    }
   });
+
+  inp.addEventListener("keydown", function(e) {
+    var x = document.getElementById(this.id + "autocomplete-list");
+    if (x) x = x.getElementsByTagName("div");
+    if (e.keyCode == 40) {
+      currentFocus++;
+      addActive(x);
+    } else if (e.keyCode == 38) {
+      currentFocus--;
+      addActive(x);
+    } else if (e.keyCode == 13) {
+      e.preventDefault();
+      if (currentFocus > -1) {
+        if (x) x[currentFocus].click();
+      }
+    }
+  });
+
   function addActive(x) {
-    /*a function to classify an item as "active":*/
     if (!x) return false;
-    /*start by removing the "active" class on all items:*/
     removeActive(x);
     if (currentFocus >= x.length) currentFocus = 0;
     if (currentFocus < 0) currentFocus = (x.length - 1);
-    /*add class "autocomplete-active":*/
     x[currentFocus].classList.add("autocomplete-active");
   }
+
   function removeActive(x) {
-    /*a function to remove the "active" class from all autocomplete items:*/
     for (var i = 0; i < x.length; i++) {
       x[i].classList.remove("autocomplete-active");
     }
   }
+
   function closeAllLists(elmnt) {
-    /*close all autocomplete lists in the document,
-    except the one passed as an argument:*/
     var x = document.getElementsByClassName("autocomplete-items");
     for (var i = 0; i < x.length; i++) {
       if (elmnt != x[i] && elmnt != inp) {
@@ -134,8 +88,36 @@ function autocomplete(inp, tags_inp, ingredients_inp) {
       }
     }
   }
-  /*execute a function when someone clicks in the document:*/
+
   document.addEventListener("click", function (e) {
-      closeAllLists(e.target);
+    closeAllLists(e.target);
   });
+}
+
+function addItemComponent(value, type, inputElement) {
+  const itemSet = type === "Tag" ? addedTags : addedIngredients;
+  
+  if (itemSet.has(value)) {
+    alert(`This ${type.toLowerCase()} has already been added.`);
+    return false;  // Return false to indicate the item was not added
+  }
+
+  itemSet.add(value);
+
+  const itemContainer = document.createElement("div");
+  itemContainer.className = "item-component";
+  itemContainer.setAttribute('data-type', type);
+  itemContainer.innerHTML = `
+    <span>${type}: ${value}</span>
+    <button class="remove-item">×</button>
+  `;
+  
+  itemContainer.querySelector('.remove-item').addEventListener('click', function() {
+    itemContainer.remove();
+    itemSet.delete(value);
+  });
+
+  // Insert the new item component after the input field
+  inputElement.parentNode.insertBefore(itemContainer, inputElement.nextSibling);
+  return true;  // Return true to indicate the item was successfully added
 }

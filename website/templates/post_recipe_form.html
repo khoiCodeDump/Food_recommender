@@ -31,6 +31,7 @@
                   <label for="Tags">Tags</label>
                   <div class="autocomplete" >
                     <input type="text" class="text-field cc-contact-field w-input" maxlength="256" name="Tags" id="Tags" required="" autocomplete="off" value="{% if recipe and recipe.tags %}{% for tag in recipe.tags %}{{ tag.name }}{% if not loop.last %},{% endif %}{% endfor %}{% endif %}"/>
+                  
                   </div>
                   
                   <label for="Ingredients">Ingredients</label>
@@ -114,8 +115,8 @@
         var tags = {{tags| tojson}};
         var ingredients = {{ingredients| tojson}};
         // /*initiate the autocomplete function on the "myInput" element, and pass along the countries array as possible autocomplete values:*/
-        autocomplete(document.getElementById("Tags"), tags, ingredients);
-        autocomplete(document.getElementById("Ingredients"), tags, ingredients);
+        autocomplete(document.getElementById("Tags"), tags, null);
+        autocomplete(document.getElementById("Ingredients"), null, ingredients);
       </script>
       {% endblock %}
       <script src="../static/recipe_form.js" type="text/javascript"></script>

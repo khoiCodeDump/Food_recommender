@@ -134,6 +134,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const formData = new FormData(form);
 
+    // Validate and combine tags and ingredients
+    const tagsInput = document.getElementById('Tags');
+    const ingredientsInput = document.getElementById('Ingredients');
+
+    const tagsArray = tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+    const ingredientsArray = ingredientsInput.value.split(',').map(ingredient => ingredient.trim()).filter(ingredient => ingredient);
+
+    const allTags = new Set([...window.addedTags, ...tagsArray]);
+    const allIngredients = new Set([...window.addedIngredients, ...ingredientsArray]);
+
+    formData.set('Tags', Array.from(allTags).join(','));
+    formData.set('Ingredients', Array.from(allIngredients).join(','));
+
     console.log("Submitting form...");
 
     // Add existing images

@@ -287,3 +287,34 @@ body {
     line-height: 1;
     cursor: pointer;
   }
+
+.item-component {
+  display: inline-block;
+  background-color: #f1f1f1;
+  padding: 5px 10px;
+  margin: 5px;
+  border-radius: 20px;
+  font-family: 'Roboto Mono', sans-serif;
+  font-size: 14px;
+}
+
+.item-component[data-type="Tag"] {
+  background-color: #e0f7fa; /* Light blue for tags */
+}
+
+.item-component[data-type="Ingredient"] {
+  background-color: #e8f5e9; /* Light green for ingredients */
+}
+
+.remove-item {
+  background: none;
+  border: none;
+  color: #ff5252; /* A softer red */
+  cursor: pointer;
+  margin-left: 5px;
+  font-weight: bold;
+}
+
+.remove-item:hover {
+  color: #ff1744; /* Darker red on hover */
+}

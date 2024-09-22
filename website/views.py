@@ -86,11 +86,6 @@ def post_recipe():
         recipe.cook_time = bleach.clean(request.form.get("Cook_time"))
         recipe.desc = bleach.clean(request.form.get("Description"))
         steps = bleach.clean(request.form.get("Instructions"))
-        tags_db = bleach.clean(request.form.get("Tags"))
-        ingredients_db = bleach.clean(request.form.get("Ingredients"))
-        
-        tags_db = [bleach.clean(tag.strip()) for tag in tags_db.split(",")]
-        ingredients_db = [bleach.clean(ingredient.strip()) for ingredient in ingredients_db.split(",")]
 
         temp = [bleach.clean(step.strip()) for step in steps.split("\r\n")]
         recipe.steps = "|".join(temp)
@@ -115,7 +110,6 @@ def post_recipe():
             if key.startswith('new_images_'):
                 new_images.extend(request.files.getlist(key))
         for image in new_images:
-            print(f"New image: {image.filename}")
             if image and allowed_file(image.filename):
                 filename = secure_filename(image.filename)
                 image_path = os.path.join(user_data_dir, 'images', filename)
@@ -128,14 +122,13 @@ def post_recipe():
         existing_video = request.form.get('existing_video')
         if not existing_video:
             old_video = Video.query.filter_by(recipe_id=recipe.id).first()
-            if os.path.exists(old_video.url):
+            if old_video and os.path.exists(old_video.url):
                 os.remove(old_video.url)
                 db.session.delete(old_video)
 
         # Handle new video upload
         new_video = request.files.get('new_video')
         if new_video and allowed_file(new_video.filename):
-            print(f"New video: {new_video.filename}")
             filename = secure_filename(new_video.filename)
             video_path = os.path.join(user_data_dir, 'videos', filename)
             os.makedirs(os.path.dirname(video_path), exist_ok=True)
@@ -146,14 +139,31 @@ def post_recipe():
         # Update tags and ingredients
         recipe.tags = []
         recipe.ingredients = []
-        for tag in tags_db:
-            queried_tag = Tag.query.filter(Tag.name == tag).first() or Tag(name=tag)
-            recipe.tags.append(queried_tag)
-        
-        for ingredient in ingredients_db:
-            queried_ing = Ingredient.query.filter(Ingredient.name == ingredient).first() or Ingredient(name=ingredient)
-            recipe.ingredients.append(queried_ing)
 
+        tags = set(request.form.get('Tags', '').split(','))
+        ingredients = set(request.form.get('Ingredients', '').split(','))
+
+        # Remove any empty strings
+        tags = {tag.strip() for tag in tags if tag.strip()}
+        ingredients = {ingredient.strip() for ingredient in ingredients if ingredient.strip()}
+
+        # Process tags
+        for tag_name in tags:
+            tag = Tag.query.filter_by(name=tag_name).first()
+            if not tag:
+                tag = Tag(name=tag_name)
+                db.session.add(tag)
+            recipe.tags.append(tag)
+
+        # Process ingredients
+        for ingredient_name in ingredients:
+            ingredient = Ingredient.query.filter_by(name=ingredient_name).first()
+            if not ingredient:
+                ingredient = Ingredient(name=ingredient_name)
+                db.session.add(ingredient)
+            recipe.ingredients.append(ingredient)
+
+        #Commit changes to database
         db.session.commit()
         return redirect(url_for('views.get_recipe', meal_id=recipe.id))
     
