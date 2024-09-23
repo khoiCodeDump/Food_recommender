@@ -6,48 +6,70 @@ let addedIngredients = window.addedIngredients;
 
 function autocomplete(inp, tags_inp, ingredients_inp) {
   var currentFocus;
+  var debounceTimer;
+
+  // Preprocess the data
+  const allItems = [
+    ...Object.values(tags_inp).map(item => ({ ...item, type: 'Tag' })),
+    ...Object.values(ingredients_inp).map(item => ({ ...item, type: 'Ingredient' }))
+  ];
+
+  function debounce(func, delay) {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(func, delay);
+  }
+
   inp.addEventListener("input", function(e) {
-    var a, b, i, val = this.value;
-    closeAllLists();
-    if (!val) { return false;}
-    currentFocus = -1;
-    a = document.createElement("DIV");
-    a.setAttribute("id", this.id + "autocomplete-list");
-    a.setAttribute("class", "autocomplete-items");
-    this.parentNode.appendChild(a);
-    
-    function addSuggestion(item, type) {
-      b = document.createElement("DIV");
-      b.innerHTML = type + ": ";
-      b.innerHTML += "<strong>" + item.substr(0, val.length) + "</strong>";
-      b.innerHTML += item.substr(val.length);
-      b.innerHTML += "<input type='hidden' value='" + item + "'>";
-      b.addEventListener("click", function(e) {
-        const selectedValue = this.getElementsByTagName("input")[0].value;
-        if (addItemComponent(selectedValue, type, inp)) {
-          inp.value = "";
-          closeAllLists();
-          inp.focus(); // Add this line to set focus back to the input
-        }
-      });
-      a.appendChild(b);
-    }
+    debounce(() => {
+      var a, b, i, val = this.value;
+      closeAllLists();
+      if (!val) { return false; }
+      currentFocus = -1;
+      
+      let parts = val.split(',');
+      let lastInput = parts[parts.length - 1].trim().toLowerCase();
+      
+      if (lastInput.length > 0) {
+        a = document.createElement("DIV");
+        a.setAttribute("id", this.id + "autocomplete-list");
+        a.setAttribute("class", "autocomplete-items");
+        this.parentNode.appendChild(a);
 
-    if (tags_inp) {
-      for (const key in tags_inp) {
-        if (tags_inp[key].name.substr(0, val.length).toUpperCase() == val.toUpperCase()) {
-          addSuggestion(tags_inp[key].name, "Tag");
-        }
-      }
-    }
+        // Filter and sort matches
+        const matches = allItems
+          .filter(item => item.name.toLowerCase().includes(lastInput))
+          .sort((a, b) => {
+            // First, sort by type (Tags before Ingredients)
+            if (a.type !== b.type) {
+              return a.type === 'Tag' ? -1 : 1;
+            }
+            // If types are the same, sort by match position
+            return a.name.toLowerCase().indexOf(lastInput) - b.name.toLowerCase().indexOf(lastInput);
+          });
 
-    if (ingredients_inp) {
-      for (const key in ingredients_inp) {
-        if (ingredients_inp[key].name.substr(0, val.length).toUpperCase() == val.toUpperCase()) {
-          addSuggestion(ingredients_inp[key].name, "Ingredient");
-        }
+        matches.forEach(item => {
+          b = document.createElement("DIV");
+          b.innerHTML = `${item.type}: ${highlightMatch(item.name, lastInput)}`;
+          b.innerHTML += `<input type='hidden' value='${item.name}'>`;
+          b.addEventListener("click", function(e) {
+            const selectedValue = this.getElementsByTagName("input")[0].value;
+            if (addItemComponent(selectedValue, item.type, inp)) {
+              // Clear input until a comma is met, or clear whole search if no comma
+              let currentValue = inp.value;
+              let lastCommaIndex = currentValue.lastIndexOf(',');
+              if (lastCommaIndex !== -1) {
+                inp.value = currentValue.substring(0, lastCommaIndex + 1).trim() + ' ';
+              } else {
+                inp.value = '';
+              }
+              closeAllLists();
+              inp.focus();
+            }
+          });
+          a.appendChild(b);
+        });
       }
-    }
+    }, 300);  // 300ms debounce
   });
 
   inp.addEventListener("keydown", function(e) {
@@ -64,7 +86,7 @@ function autocomplete(inp, tags_inp, ingredients_inp) {
         e.preventDefault();
         if (x) x[currentFocus].click();
       } else if (!window.location.pathname.includes('/post_recipe')){
-        updateHiddenFields();  // Add this line
+        updateHiddenFields();
         this.form.submit();
       }
     }
@@ -98,12 +120,22 @@ function autocomplete(inp, tags_inp, ingredients_inp) {
   });
 }
 
+function highlightMatch(text, query) {
+  const index = text.toLowerCase().indexOf(query.toLowerCase());
+  if (index >= 0) {
+    return text.substring(0, index) +
+           "<strong>" + text.substring(index, index + query.length) + "</strong>" +
+           text.substring(index + query.length);
+  }
+  return text;
+}
+
 function addItemComponent(value, type, inputElement) {
   const itemSet = type === "Tag" ? addedTags : addedIngredients;
   
   if (itemSet.has(value)) {
     alert(`This ${type.toLowerCase()} has already been added.`);
-    return false;  // Return false to indicate the item was not added
+    return false;
   }
 
   itemSet.add(value);
@@ -121,12 +153,10 @@ function addItemComponent(value, type, inputElement) {
     itemSet.delete(value);
   });
 
-  // Insert the new item component after the input field
   inputElement.parentNode.insertBefore(itemContainer, inputElement.nextSibling);
-  return true;  // Return true to indicate the item was successfully added
+  return true;
 }
 
-// Add this new function
 function updateHiddenFields() {
   const tagsInput = document.createElement('input');
   tagsInput.type = 'hidden';
@@ -141,5 +171,4 @@ function updateHiddenFields() {
   const form = document.querySelector('form');
   form.appendChild(tagsInput);
   form.appendChild(ingredientsInput);
-
 }
