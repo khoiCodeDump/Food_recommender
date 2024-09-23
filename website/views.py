@@ -118,7 +118,6 @@ def search():
         ingredient_res = Ingredient.query.filter(Ingredient.name==field).first()
         if ingredient_res:
             result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
-            continue
 
         tag_res = Tag.query.filter(Tag.name==field).first()
         if tag_res:
@@ -128,7 +127,7 @@ def search():
         name_res = Recipe.query.filter(Recipe.name.contains(field))
         if name_res:        
             result = search_recipes(recipes=recipes, query_res=name_res, result=result)
-            continue
+    
 
     _recipes = []
     for result_recipe in result:

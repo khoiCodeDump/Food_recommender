@@ -9,10 +9,13 @@ function autocomplete(inp, tags_inp, ingredients_inp) {
   var debounceTimer;
 
   // Preprocess the data
-  const allItems = [
-    ...Object.values(tags_inp).map(item => ({ ...item, type: 'Tag' })),
-    ...Object.values(ingredients_inp).map(item => ({ ...item, type: 'Ingredient' }))
-  ];
+  const allItems = [];
+  if (tags_inp) {
+    allItems.push(...Object.values(tags_inp).map(item => ({ ...item, type: 'Tag' })));
+  }
+  if (ingredients_inp) {
+    allItems.push(...Object.values(ingredients_inp).map(item => ({ ...item, type: 'Ingredient' })));
+  }
 
   function debounce(func, delay) {
     clearTimeout(debounceTimer);
@@ -38,14 +41,7 @@ function autocomplete(inp, tags_inp, ingredients_inp) {
         // Filter and sort matches
         const matches = allItems
           .filter(item => item.name.toLowerCase().includes(lastInput))
-          .sort((a, b) => {
-            // First, sort by type (Tags before Ingredients)
-            if (a.type !== b.type) {
-              return a.type === 'Tag' ? -1 : 1;
-            }
-            // If types are the same, sort by match position
-            return a.name.toLowerCase().indexOf(lastInput) - b.name.toLowerCase().indexOf(lastInput);
-          });
+          .sort((a, b) => a.name.toLowerCase().indexOf(lastInput) - b.name.toLowerCase().indexOf(lastInput));
 
         matches.forEach(item => {
           b = document.createElement("DIV");
