@@ -78,10 +78,12 @@ function autocomplete(inp, tags_inp, ingredients_inp) {
       currentFocus--;
       addActive(x);
     } else if (e.keyCode == 13) {
-      if (currentFocus > -1) {
-        e.preventDefault();
-        if (x) x[currentFocus].click();
+      e.preventDefault();
+      if (currentFocus > -1 && x) {
+        x[currentFocus].click();
+        currentFocus = -1; // Reset currentFocus after selection
       } else if (!window.location.pathname.includes('/post_recipe')){
+        console.log("Submitting form");
         updateHiddenFields();
         this.form.submit();
       }

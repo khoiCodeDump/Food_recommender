@@ -25,14 +25,19 @@ def load():
     count = request.args.get('count', 0, type=int)
     
     try:
-        ids = [ id + 1 for id in range(count, count+quantity)]
+        ids = [id + 1 for id in range(count, count+quantity)]
         res = Recipe.query.filter(Recipe.id.in_(ids)).all()
         data = {}
         for stuff in res:
-            data[stuff.id] = stuff.name
+            first_image = stuff.images.first()
+            image_url = url_for('views.serve_image', filename=first_image.filename) if first_image else url_for('static', filename='images/food_image_empty.png')
+
+            data[stuff.id] = {
+                'name': stuff.name,
+                'image_url': image_url
+            }
         res = make_response(data)
-    except:
-        print("No more recipes")
+    except Exception as e:
         res = make_response(jsonify({}), 200)
 
     return res
@@ -132,7 +137,6 @@ def search():
 
     _recipes = []
     for result_recipe in result:
-        print(result_recipe.id)
         _recipes.append(result_recipe.id)
 
     if not os.path.exists('data/' + str(current_user.id)):
@@ -160,7 +164,12 @@ def load_search():
         res = res[count: count + quantity]
         data = {}
         for stuff in res:
-            data[stuff.id] = stuff.name
+            first_image = stuff.images.first()
+            image_url = url_for('views.serve_image', filename=first_image.filename) if first_image else url_for('static', filename='images/food_image_empty.png')
+            data[stuff.id] = {
+                'name': stuff.name,
+                'image_url': image_url
+            }
         res = make_response(data)
     except:
         print("No more posts")
@@ -185,7 +194,12 @@ def load_profile():
         res = res[count: count + quantity]
         data = {}
         for stuff in res:
-            data[stuff.id] = stuff.name
+            first_image = stuff.images.first()
+            image_url = url_for('views.serve_image', filename=first_image.filename) if first_image else url_for('static', filename='images/food_image_empty.png')
+            data[stuff.id] = {
+                'name': stuff.name,
+                'image_url': image_url
+            }
         res = make_response(data)
     except:
         print("No more posts")
@@ -213,10 +227,10 @@ def post_recipe():
         recipe.name = bleach.clean(request.form.get("Title"))
         recipe.cook_time = bleach.clean(request.form.get("Cook_time"))
         recipe.desc = bleach.clean(request.form.get("Description"))
+        
+        # Handle steps
         steps = bleach.clean(request.form.get("Instructions"))
-
-        temp = [bleach.clean(step.strip()) for step in steps.split("\r\n")]
-        recipe.steps = "|".join(temp)
+        recipe.steps = steps  # This will now be a |-separated string of steps
         
         # Ensure user directory exists
         user_data_dir = os.path.join('data', str(current_user.id))

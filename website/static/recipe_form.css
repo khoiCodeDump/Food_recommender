@@ -337,4 +337,7 @@ body {
       color: #ff1744; /* Darker red on hover */
     }
   
+    .instruction-input::-webkit-scrollbar { 
+      display: none;  /* WebKit */
+    }
   

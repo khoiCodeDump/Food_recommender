@@ -32,7 +32,7 @@
         { 
             var route_data = {{data | tojson}}.route;
             var route = (route_data === 0) ? `/load?count=${counter}` : (route_data === 1) ? `/load_profile?count=${counter}` : `/load_search?count=${counter}`;
-            fetch( route, {
+            fetch(route, {
                 method: "GET",
             }).then((_res) => {
                 _res.json().then((data) => {
@@ -47,9 +47,9 @@
                         load_link.setAttribute("href", `/recipes/${key}`);
                         const recipe_image = template_clone.querySelector("img");
                         
-                        recipe_image.setAttribute("src", "../static/images/food_image_empty.png");
+                        recipe_image.setAttribute("src", data[key].image_url);
                         const recipe_name = template_clone.querySelector("#recipe_name");
-                        recipe_name.innerHTML = data[key];
+                        recipe_name.innerHTML = data[key].name;
                         scroller.appendChild(template_clone);
                         counter += 1;
                     }
