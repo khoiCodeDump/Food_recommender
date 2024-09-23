@@ -98,6 +98,8 @@ def search():
         # Redirect to the referring page or to the home page if there's no referrer
         return redirect(request.referrer or url_for('views.home'))
 
+    all_search_terms = [search_field] + list(tags) + list(ingredients)
+
     # search_field = re.findall(r'\w+', search_field)
     search_field = search_field.split(",")
     
@@ -122,7 +124,6 @@ def search():
         tag_res = Tag.query.filter(Tag.name==field).first()
         if tag_res:
             result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
-            continue
         
         name_res = Recipe.query.filter(Recipe.name.contains(field))
         if name_res:        
@@ -144,7 +145,7 @@ def search():
         print(f"Error writing search results: {e}")
                 
     data = {"route": 2}
-    return render_template("search_view.html", data=data, search_field=search_field, tags=Tag.query.all(), ingredients=Ingredient.query.all())
+    return render_template("search_view.html", data=data, search_field=all_search_terms, tags=Tag.query.all(), ingredients=Ingredient.query.all())
 
 @views.route('/load_search', methods=['GET'])
 def load_search():
