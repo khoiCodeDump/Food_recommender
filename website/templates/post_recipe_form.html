@@ -31,7 +31,6 @@
                   <label for="Tags">Tags</label>
                   <div class="autocomplete input-container" >
                     <input type="text" class="text-field cc-contact-field w-input" maxlength="256" name="Tags" id="Tags" autocomplete="off" value="{% if recipe and recipe.tags %}{% for tag in recipe.tags %}{{ tag.name }}{% if not loop.last %},{% endif %}{% endfor %}{% endif %}"/>
-                  
                   </div>
                   
                   <label for="Ingredients">Ingredients</label>
@@ -129,54 +128,6 @@
         autocomplete(document.getElementById("Tags"), tags, null);
         autocomplete(document.getElementById("Ingredients"), null, ingredients);
 
-        document.addEventListener('DOMContentLoaded', function() {
-          const instructionsList = document.getElementById('instructionsList');
-          const hiddenInput = document.getElementById('Instructions');
-
-          function addNewStep() {
-            const li = document.createElement('li');
-            const textarea = document.createElement('textarea');
-            textarea.className = 'instruction-input w-input';
-            textarea.placeholder = 'Enter a step and press Enter for a new line';
-            textarea.rows = 1;
-            li.appendChild(textarea);
-            instructionsList.appendChild(li);
-            textarea.focus();
-            autoResize(textarea);
-          }
-
-          function updateHiddenInput() {
-            const steps = Array.from(instructionsList.querySelectorAll('textarea'))
-              .map(textarea => textarea.value.trim())
-              .filter(step => step !== '');
-            hiddenInput.value = steps.join('|');
-          }
-
-          function autoResize(textarea) {
-            textarea.style.height = 'auto';
-            textarea.style.height = textarea.scrollHeight + 'px';
-          }
-
-          instructionsList.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              addNewStep();
-            }
-          });
-
-          instructionsList.addEventListener('input', function(e) {
-            if (e.target.tagName === 'TEXTAREA') {
-              autoResize(e.target);
-              updateHiddenInput();
-            }
-          });
-
-          // Auto-resize existing textareas
-          instructionsList.querySelectorAll('textarea').forEach(autoResize);
-
-          // Update hidden input before form submission
-          document.querySelector('form').addEventListener('submit', updateHiddenInput);
-        });
       </script>
       {% endblock %}
       <script src="../static/recipe_form.js" type="text/javascript"></script>

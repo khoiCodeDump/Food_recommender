@@ -131,7 +131,52 @@ document.addEventListener('DOMContentLoaded', function() {
   // Handle form submission
   form.addEventListener('submit', function(e) {
     e.preventDefault();
+    const instructionsList = document.getElementById('instructionsList');
+    const hiddenInput = document.getElementById('Instructions');
 
+    function addNewStep() {
+      const li = document.createElement('li');
+      const textarea = document.createElement('textarea');
+      textarea.className = 'instruction-input w-input';
+      textarea.placeholder = 'Enter a step and press Enter for a new line';
+      textarea.rows = 1;
+      li.appendChild(textarea);
+      instructionsList.appendChild(li);
+      textarea.focus();
+      autoResize(textarea);
+    }
+
+    function updateHiddenInput() {
+      const steps = Array.from(instructionsList.querySelectorAll('textarea'))
+        .map(textarea => textarea.value.trim())
+        .filter(step => step !== '');
+      hiddenInput.value = steps.join('|');
+    }
+
+    function autoResize(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
+    instructionsList.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        addNewStep();
+      }
+    });
+
+    instructionsList.addEventListener('input', function(e) {
+      if (e.target.tagName === 'TEXTAREA') {
+        autoResize(e.target);
+        updateHiddenInput();
+      }
+    });
+
+    // Auto-resize existing textareas
+    instructionsList.querySelectorAll('textarea').forEach(autoResize);
+
+    // Update hidden input before form submission
+    document.querySelector('form').addEventListener('submit', updateHiddenInput);
     const formData = new FormData(form);
 
     // Validate and combine tags and ingredients
