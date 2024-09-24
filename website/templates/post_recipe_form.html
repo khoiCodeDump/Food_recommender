@@ -29,13 +29,17 @@
                   
                   <label>If there are no search suggestions, the search items are not in the database and will be added</label>
                   <label for="Tags">Tags</label>
-                  <div class="autocomplete input-container" >
-                    <input type="text" class="text-field cc-contact-field w-input" maxlength="256" name="Tags" id="Tags" autocomplete="off" value="{% if recipe and recipe.tags %}{% for tag in recipe.tags %}{{ tag.name }}{% if not loop.last %},{% endif %}{% endfor %}{% endif %}"/>
+                  <div class="autocomplete input-container">
+                    <div id="tagContainer" class="item-container"></div>
+                    <input type="text" class="text-field cc-contact-field w-input" maxlength="256" name="TagsInput" id="TagsInput" autocomplete="off" placeholder="Add a tag"/>
+                    <input type="hidden" name="Tags" id="Tags" value="{% if recipe and recipe.tags %}{% for tag in recipe.tags %}{{ tag.name }}{% if not loop.last %},{% endif %}{% endfor %}{% endif %}"/>
                   </div>
                   
                   <label for="Ingredients">Ingredients</label>
                   <div class="autocomplete input-container">
-                    <input type="text" class="text-field cc-contact-field w-input" maxlength="256" name="Ingredients" id="Ingredients" autocomplete="off" value="{% if recipe and recipe.ingredients %}{% for ingredient in recipe.ingredients %}{{ ingredient.name }}{% if not loop.last %},{% endif %}{% endfor %}{% endif %}"/>
+                    <div id="ingredientContainer" class="item-container"></div>
+                    <input type="text" class="text-field cc-contact-field w-input" maxlength="256" name="IngredientsInput" id="IngredientsInput" autocomplete="off" placeholder="Add an ingredient"/>
+                    <input type="hidden" name="Ingredients" id="Ingredients" value="{% if recipe and recipe.ingredients %}{% for ingredient in recipe.ingredients %}{{ ingredient.name }}{% if not loop.last %},{% endif %}{% endfor %}{% endif %}"/>
                   </div>
                   
                   <label for="Description">Description</label>
@@ -125,9 +129,56 @@
         var tags = {{tags| tojson}};
         var ingredients = {{ingredients| tojson}};
         
-        autocomplete(document.getElementById("Tags"), tags, null);
-        autocomplete(document.getElementById("Ingredients"), null, ingredients);
+        function setupItemComponents(inputId, containerId, hiddenInputId, items, type) {
+          const input = document.getElementById(inputId);
+          const container = document.getElementById(containerId);
+          const hiddenInput = document.getElementById(hiddenInputId);
 
+          function addItem(value, type) {
+            const itemSet = type === "Tag" ? window.addedTags : window.addedIngredients;
+            itemSet.add(value);
+            const item = document.createElement('div');
+            item.className = 'item-component';
+            item.innerHTML = `
+              <span>${type}: ${value}</span>
+              <button type="button" class="remove-item">&times;</button>
+            `;
+            container.appendChild(item);
+
+            item.querySelector('.remove-item').addEventListener('click', () => {
+              container.removeChild(item);
+              updateHiddenInput();
+              itemSet.delete(value);
+            });
+
+            input.value = '';
+            updateHiddenInput();
+          }
+
+          function updateHiddenInput() {
+            const items = Array.from(container.querySelectorAll('.item-component span')).map(span => span.textContent);
+            hiddenInput.value = items.join(',');
+          }
+
+          input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && input.value.trim()) {
+              e.preventDefault();
+              addItem(input.value.trim(), type);
+            }
+          });
+
+          // Initialize with existing items
+          if (hiddenInput.value) {
+            hiddenInput.value.split(',').forEach(item => addItem(item.trim(), type));
+          }
+  
+        }
+
+        setupItemComponents('TagsInput', 'tagContainer', 'Tags', tags, 'Tag');
+        setupItemComponents('IngredientsInput', 'ingredientContainer', 'Ingredients', ingredients, 'Ingredient');
+        
+        autocomplete(document.getElementById("TagsInput"), tags, null);
+        autocomplete(document.getElementById("IngredientsInput"), null, ingredients);
       </script>
       {% endblock %}
       <script src="../static/recipe_form.js" type="text/javascript"></script>

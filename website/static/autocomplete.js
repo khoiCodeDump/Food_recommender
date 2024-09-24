@@ -131,8 +131,16 @@ function highlightMatch(text, query) {
 function addItemComponent(value, type, inputElement) {
   const itemSet = type === "Tag" ? addedTags : addedIngredients;
   
-  if (itemSet.has(value)) {
-    alert(`This ${type.toLowerCase()} has already been added.`);
+  if (itemSet.has(value)) {    
+    // Clear the input up to the last comma for both tags and ingredients
+    let currentValue = inputElement.value;
+    let lastCommaIndex = currentValue.lastIndexOf(',');
+    if (lastCommaIndex !== -1) {
+      inputElement.value = currentValue.substring(0, lastCommaIndex + 1).trim() + ' ';
+    } else {
+      inputElement.value = '';
+    }
+    
     return false;
   }
 
