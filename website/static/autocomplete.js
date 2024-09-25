@@ -41,7 +41,11 @@ function autocomplete(inp, tags_inp, ingredients_inp) {
         // Filter and sort matches
         const matches = allItems
           .filter(item => item.name.toLowerCase().includes(lastInput))
-          .sort((a, b) => a.name.toLowerCase().indexOf(lastInput) - b.name.toLowerCase().indexOf(lastInput));
+          .sort((a, b) => {
+              const aIsTag = a.type === 'Tag' ? 0 : 1; // Assuming 'type' indicates if it's a tag or ingredient
+              const bIsTag = b.type === 'Tag' ? 0 : 1;
+              return aIsTag - bIsTag || a.name.toLowerCase().indexOf(lastInput) - b.name.toLowerCase().indexOf(lastInput);
+          });
 
         matches.forEach(item => {
           b = document.createElement("DIV");

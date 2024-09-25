@@ -7,3 +7,4 @@ pandas
 bleach
 transformers
 torch
+openai

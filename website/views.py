@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from .models import Recipe, Tag, Ingredient, Image, Video
 from . import db
 from werkzeug.utils import secure_filename
-from .utils import allowed_file, search_recipes, serve_media
+from .utils import allowed_file, search_recipes, serve_media, query_openai
 import json
 import pickle
 import os
@@ -103,7 +103,9 @@ def search():
         # Redirect to the referring page or to the home page if there's no referrer
         return redirect(request.referrer or url_for('views.home'))
 
-    all_search_terms = [search_field] + list(tags) + list(ingredients)
+    allTags = list(tags)
+    allIngredients = list(ingredients)
+    allNames = []
 
     # search_field = re.findall(r'\w+', search_field)
     search_field = search_field.split(",")
@@ -124,17 +126,21 @@ def search():
         
         ingredient_res = Ingredient.query.filter(Ingredient.name==field).first()
         if ingredient_res:
+            allIngredients.append(str(field))
             result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
 
         tag_res = Tag.query.filter(Tag.name==field).first()
         if tag_res:
+            allTags.append(str(field))
             result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
+            continue
         
-        name_res = Recipe.query.filter(Recipe.name.contains(field))
-        if name_res:        
-            result = search_recipes(recipes=recipes, query_res=name_res, result=result)
+        if field:
+            name_res = Recipe.query.filter(Recipe.name.contains(field))
+            if name_res:        
+                allNames.append(str(field))
+                result = search_recipes(recipes=recipes, query_res=name_res, result=result)
     
-
     _recipes = []
     for result_recipe in result:
         _recipes.append(result_recipe.id)
@@ -149,7 +155,33 @@ def search():
         print(f"Error writing search results: {e}")
                 
     data = {"route": 2}
-    return render_template("search_view.html", data=data, search_field=all_search_terms, tags=Tag.query.all(), ingredients=Ingredient.query.all())
+    search_field = {
+        "tags" : allTags,
+        "ingredients" : allIngredients,
+        "names" : allNames
+    }
+    return render_template("search_view.html", data=data, search_field= search_field, tags=Tag.query.all(), ingredients=Ingredient.query.all())
+# @views.route('/search', methods=['POST'])
+# def search():
+#     search_field = bleach.clean(request.form.get("search-field"))
+    
+#     if not search_field:
+#         return redirect(request.referrer or url_for('views.home'))
+    
+#     # Query the fine-tuned OpenAI model with the user's search query
+#     prompt = f"Suggest recipes based on the following query: {search_field}"
+#     ai_response = query_openai(prompt)
+    
+#     # Extract recipe names from the AI response
+#     suggested_recipes = [line.strip() for line in ai_response.split('\n') if line.strip()]
+    
+#     # Find matching recipes in the database
+#     recipes = Recipe.query.filter(Recipe.name.in_(suggested_recipes)).all()
+    
+#     if not recipes:
+#         return render_template("search_view.html", data={"route": 2}, search_field=[search_field], tags=Tag.query.all(), ingredients=Ingredient.query.all(), recipes=[])
+    
+#     return render_template("search_view.html", data={"route": 2}, search_field=[search_field], tags=Tag.query.all(), ingredients=Ingredient.query.all(), recipes=recipes)
 
 @views.route('/load_search', methods=['GET'])
 def load_search():

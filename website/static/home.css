@@ -249,23 +249,23 @@ a { color: inherit; }
   }
   
   .item-component[data-type="Tag"] {
-    background-color: #e0f7fa; /* Light blue for tags */
+    background-color: orangered; 
   }
   
   .item-component[data-type="Ingredient"] {
-    background-color: #e8f5e9; /* Light green for ingredients */
+    background-color: orange; 
   }
   
   .remove-item {
     background: none;
     border: none;
-    color: #ff5252; /* A softer red */
+    color: black;
     cursor: pointer;
     margin-left: 5px;
     font-weight: bold;
   }
   
-  .remove-item:hover {
-    color: #ff1744; /* Darker red on hover */
-  }
+  /* .remove-item:hover {
+    color: #ff1744;
+  } */
 

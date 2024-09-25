@@ -107,7 +107,7 @@
                           <div class="btn---bg-circle"></div>
                       </div>
                     </div>     
-                    <a href="/profile" class="btn w-button">Cancel</a>
+                    <a href="/profile" class="btn w-button" >Cancel</a>
                   </div>
                   <input type="hidden" name="recipe_id" value="{{ recipe.id if recipe else '' }}">
                 </form>
@@ -143,6 +143,7 @@
               <span>${type}: ${value}</span>
               <button type="button" class="remove-item">&times;</button>
             `;
+            item.setAttribute('data-type', type);
             container.appendChild(item);
 
             item.querySelector('.remove-item').addEventListener('click', () => {
