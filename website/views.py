@@ -9,6 +9,7 @@ import pickle
 import os
 import time
 import bleach
+from website import cache  
 
 views = Blueprint('views', __name__)
 quantity = 45
@@ -16,9 +17,20 @@ quantity = 45
 @views.route('/', methods=['GET', 'POST'])
 def home():
     data = {"route": 0}
-    
-    return render_template("home.html", data=data, tags=Tag.query.all(), ingredients= Ingredient.query.all() )
+    all_tags = cache.get('all_tags')
+    all_ingredients = cache.get('all_ingredients')
 
+    if all_tags is None:
+        all_tags = Tag.query.all()
+        cache.set('all_tags', all_tags)
+
+    if all_ingredients is None:
+        all_ingredients = Ingredient.query.all()
+        cache.set('all_ingredients', all_ingredients)
+
+    return render_template("home.html", data=data, tags=all_tags, ingredients=all_ingredients )
+
+@cache.cached(timeout=60)  # Use the cache decorator directly
 @views.route('/load', methods=['GET'])
 def load():
     time.sleep(0.2)
@@ -318,9 +330,13 @@ def post_recipe():
         tags = {tag.strip() for tag in set(request.form.get('Tags', '').split(',')) if tag.strip()}
         ingredients = {ingredient.strip() for ingredient in set(request.form.get('Ingredients', '').split(',')) if ingredient.strip()}
 
+        # Fetch existing tags and ingredients in one query
+        existing_tags = {tag.name: tag for tag in Tag.query.filter(Tag.name.in_(tags)).all()}
+        existing_ingredients = {ingredient.name: ingredient for ingredient in Ingredient.query.filter(Ingredient.name.in_(ingredients)).all()}
+
         # Process tags
         for tag_name in tags:
-            tag = Tag.query.filter_by(name=tag_name).first()
+            tag = existing_tags.get(tag_name)
             if not tag:
                 tag = Tag(name=tag_name)
                 db.session.add(tag)
@@ -328,7 +344,7 @@ def post_recipe():
 
         # Process ingredients
         for ingredient_name in ingredients:
-            ingredient = Ingredient.query.filter_by(name=ingredient_name).first()
+            ingredient = existing_ingredients.get(ingredient_name)
             if not ingredient:
                 ingredient = Ingredient(name=ingredient_name)
                 db.session.add(ingredient)

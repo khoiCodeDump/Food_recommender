@@ -8,3 +8,4 @@ Frontend: HTML, CSS, and Javascript, jinja templates
 
 Backend: Python flask sqlite3 with flask-sqlalchemy
 
+AI integration: ChatGpt with vector database using hugging face transformers for better search results of recipes.

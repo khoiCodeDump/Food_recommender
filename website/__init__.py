@@ -4,9 +4,12 @@ from os import path
 from flask_login import LoginManager
 import ast
 import pandas as pd
+from flask_caching import Cache
+from flask_migrate import Migrate
 
 db = SQLAlchemy()
 DB_NAME = "database"
+cache = Cache(config={'CACHE_TYPE': 'simple'})
 
 
 def create_app():
@@ -15,14 +18,19 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_NAME}'
     db.init_app(app)
 
+    cache.init_app(app)
+
+    migrate = Migrate()
+    migrate.init_app(app, db)
+
     from .views import views
     from .auth import auth
-
     
     app.register_blueprint(views, url_prefix='/')
     app.register_blueprint(auth, url_prefix='/auth')
     
     from .models import User 
+    from .models import generate_recipe_embeddings
 
     create_database(app)
     
@@ -34,6 +42,8 @@ def create_app():
     def load_user(id):
         return User.query.get(int(id))
 
+    with app.app_context():
+        generate_recipe_embeddings()
     return app
 
 

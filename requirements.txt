@@ -8,3 +8,10 @@ bleach
 transformers
 torch
 openai
+Flask-Caching
+Flask-Compress
+sentence-transformers
+faiss-cpu
+numpy
+sqlalchemy[asyncio]
+aiosqlite
