@@ -180,6 +180,47 @@
         
         autocomplete(document.getElementById("TagsInput"), tags, null);
         autocomplete(document.getElementById("IngredientsInput"), null, ingredients);
+
+        const instructionsList = document.getElementById('instructionsList');
+        const hiddenInstructions = document.getElementById('Instructions');
+
+        function addNewStep(event) {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            const newLi = document.createElement('li');
+            const newTextarea = document.createElement('textarea');
+            newTextarea.className = 'instruction-input w-input';
+            newTextarea.placeholder = 'Enter a step and press Enter for a new line';
+            newTextarea.rows = '1';
+            newLi.appendChild(newTextarea);
+            event.target.parentNode.insertAdjacentElement('afterend', newLi);
+            newTextarea.focus();
+            updateHiddenInstructions();
+          }
+        }
+
+        function updateHiddenInstructions() {
+          const steps = Array.from(instructionsList.querySelectorAll('.instruction-input'))
+            .map(textarea => textarea.value.trim())
+            .filter(step => step !== '');
+          hiddenInstructions.value = steps.join('|');
+        }
+
+        instructionsList.addEventListener('keydown', function(event) {
+          if (event.target.classList.contains('instruction-input')) {
+            addNewStep(event);
+          }
+        });
+
+        instructionsList.addEventListener('input', updateHiddenInstructions);
+
+        // Initialize existing textareas
+        instructionsList.querySelectorAll('.instruction-input').forEach(textarea => {
+          textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+          });
+        });
       </script>
       {% endblock %}
       <script src="../static/recipe_form.js" type="text/javascript"></script>

@@ -1,18 +1,21 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, make_response, abort
 from flask_login import login_required, current_user
-from .models import Recipe, Tag, Ingredient, Image, Video
+from .models import Recipe, Tag, Ingredient, Image, Video, semantic_search_recipes
 from . import db
 from werkzeug.utils import secure_filename
 from .utils import allowed_file, search_recipes, serve_media, query_openai
 import json
-import pickle
+# import pickle
 import os
 import time
 import bleach
 from website import cache  
+from sentence_transformers import SentenceTransformer
+
 
 views = Blueprint('views', __name__)
 quantity = 45
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
 @views.route('/', methods=['GET', 'POST'])
 def home():
@@ -23,10 +26,13 @@ def home():
     if all_tags is None:
         all_tags = Tag.query.all()
         cache.set('all_tags', all_tags)
+        print("New tags cache")
 
     if all_ingredients is None:
         all_ingredients = Ingredient.query.all()
         cache.set('all_ingredients', all_ingredients)
+        print("New ingredients cache")
+
 
     return render_template("home.html", data=data, tags=all_tags, ingredients=all_ingredients )
 
@@ -157,14 +163,7 @@ def search():
     for result_recipe in result:
         _recipes.append(result_recipe.id)
 
-    if not os.path.exists('data/' + str(current_user.id)):
-        os.mkdir('data/' + str(current_user.id))
-
-    try:
-        with open('data/' + str(current_user.id) + '/search_result.pkl', 'wb') as f:
-            pickle.dump(_recipes, f)
-    except IOError as e:
-        print(f"Error writing search results: {e}")
+    cache.set(f"user:{current_user.id}:search_result", _recipes)
                 
     data = {"route": 2}
     search_field = {
@@ -172,28 +171,20 @@ def search():
         "ingredients" : allIngredients,
         "names" : allNames
     }
-    return render_template("search_view.html", data=data, search_field= search_field, tags=Tag.query.all(), ingredients=Ingredient.query.all())
+    return render_template("search_view.html", data=data, search_field= search_field, tags=cache.get("all_tags"), ingredients=cache.get("all_ingredients"))
 # @views.route('/search', methods=['POST'])
 # def search():
-#     search_field = bleach.clean(request.form.get("search-field"))
+#     user_query = bleach.clean(request.form.get("search-field"))
     
-#     if not search_field:
+#     if not user_query:
 #         return redirect(request.referrer or url_for('views.home'))
     
 #     # Query the fine-tuned OpenAI model with the user's search query
-#     prompt = f"Suggest recipes based on the following query: {search_field}"
-#     ai_response = query_openai(prompt)
+#     results = search_recipes(user_query, top_k=5)
     
-#     # Extract recipe names from the AI response
-#     suggested_recipes = [line.strip() for line in ai_response.split('\n') if line.strip()]
-    
-#     # Find matching recipes in the database
-#     recipes = Recipe.query.filter(Recipe.name.in_(suggested_recipes)).all()
-    
-#     if not recipes:
-#         return render_template("search_view.html", data={"route": 2}, search_field=[search_field], tags=Tag.query.all(), ingredients=Ingredient.query.all(), recipes=[])
-    
-#     return render_template("search_view.html", data={"route": 2}, search_field=[search_field], tags=Tag.query.all(), ingredients=Ingredient.query.all(), recipes=recipes)
+#     cache.set(f"user:{current_user.id}:search_result", results)
+#     # Return the search results to the user
+#     return render_template('search_results.html', recipes=results)
 
 @views.route('/load_search', methods=['GET'])
 def load_search():
@@ -201,14 +192,16 @@ def load_search():
     time.sleep(0.2)
     count = request.args.get('count', 0, type=int)
     try:
-        with open('data/' + str(current_user.id) + '/search_result.pkl', 'rb') as f:
-            recipe_list = pickle.load(f)
+        # with open('data/' + str(current_user.id) + '/search_result.pkl', 'rb') as f:
+        #     recipe_list = pickle.load(f)
 
-        res = Recipe.query.filter(Recipe.id.in_(recipe_list))
-        res = res[count: count + quantity]
+        recipe_list = cache.get(f"user:{current_user.id}:search_result")
+        res = Recipe.query.filter(Recipe.id.in_(recipe_list[count: count + quantity]))
         data = {}
         for stuff in res:
+            print("test0")
             first_image = stuff.images.first()
+            print("test1")
             image_url = url_for('views.serve_image', filename=first_image.filename) if first_image else url_for('static', filename='images/food_image_empty.png')
             data[stuff.id] = {
                 'name': stuff.name,
@@ -225,7 +218,11 @@ def load_search():
 @login_required
 def profile():
     data = {"route": 1}
-    return render_template("profile.html", data=data, tags=Tag.query.all(), ingredients= Ingredient.query.all() ) 
+    if not cache.get(f"user:{current_user.id}:profile"):
+        ids = [recipe.id for recipe in Recipe.query.filter(Recipe.user_id==current_user.id).all()]
+        cache.set(f"user:{current_user.id}:profile", ids)
+
+    return render_template("profile.html", data=data, tags=cache.get("all_tags"), ingredients= cache.get("all_ingredients") ) 
 
 @views.route('/load_profile', methods=['GET'])
 @login_required
@@ -234,7 +231,8 @@ def load_profile():
     count = request.args.get('count', 0, type=int)
 
     try:
-        res = Recipe.query.filter(Recipe.user_id==current_user.id).all()
+        recipe_ids = cache.get(f"user:{current_user.id}:profile")
+        res = Recipe.query.filter(Recipe.id.in_(recipe_ids[count: count + quantity]))
         res = res[count: count + quantity]
         data = {}
         for stuff in res:
@@ -272,6 +270,7 @@ def post_recipe():
         recipe.cook_time = bleach.clean(request.form.get("Cook_time"))
         recipe.desc = bleach.clean(request.form.get("Description"))
         
+        print(recipe.name)
         # Handle steps
         steps = bleach.clean(request.form.get("Instructions"))
         recipe.steps = steps  # This will now be a |-separated string of steps
@@ -327,9 +326,8 @@ def post_recipe():
         recipe.ingredients = []
 
         # Remove any empty strings
-        tags = {tag.strip() for tag in set(request.form.get('Tags', '').split(',')) if tag.strip()}
-        ingredients = {ingredient.strip() for ingredient in set(request.form.get('Ingredients', '').split(',')) if ingredient.strip()}
-
+        tags = {tag.strip() for tag in set(request.form.get('TagsInput', '').split(',')) if tag.strip()}
+        ingredients = {ingredient.strip() for ingredient in set(request.form.get('IngredientsInput', '').split(',')) if ingredient.strip()}
         # Fetch existing tags and ingredients in one query
         existing_tags = {tag.name: tag for tag in Tag.query.filter(Tag.name.in_(tags)).all()}
         existing_ingredients = {ingredient.name: ingredient for ingredient in Ingredient.query.filter(Ingredient.name.in_(ingredients)).all()}
@@ -350,6 +348,24 @@ def post_recipe():
                 db.session.add(ingredient)
             recipe.ingredients.append(ingredient)
 
+
+        steps = recipe.steps.split('|')
+        steps = [s.strip() for s in steps]
+        text_data = f"{recipe.name} {recipe.ingredients} {recipe.tags or ''} {recipe.desc}. {'. '.join(steps)}"
+        
+        # Generate embedding for the recipe
+        embedding = model.encode(text_data)
+        recipe.embedding = embedding.tolist()
+
+        user_search_cache_key = f"user:{current_user.id}:search_result"
+        user_profile_cache_key = f"user:{current_user.id}:profile"
+        # Use delete_many for efficient multiple key deletion
+        cache.delete_many([
+            user_search_cache_key,
+            user_profile_cache_key,
+            "all_tags",
+            "all_ingredients"
+        ])
         #Commit changes to database
         db.session.commit()
         return redirect(url_for('views.get_recipe', meal_id=recipe.id))
@@ -357,7 +373,7 @@ def post_recipe():
     # GET request
     recipe_id = request.args.get('recipe_id')
     if not recipe_id:
-        return render_template("post_recipe_form.html", user=current_user, recipe=[], tags=Tag.query.all(), ingredients=Ingredient.query.all())
+        return render_template("post_recipe_form.html", user=current_user, recipe=[], tags=cache.get("all_tags"), ingredients=cache.get("all_ingredients"))
         
     # Updating existing recipe
     recipe = Recipe.query.filter_by(id=recipe_id, user_id=current_user.id).first()
@@ -365,7 +381,7 @@ def post_recipe():
         abort(403)  # Forbidden if the recipe doesn't exist or doesn't belong to the user
     existing_images = Image.query.filter_by(recipe_id=recipe.id).all()
     existing_video = Video.query.filter_by(recipe_id=recipe.id).first()
-    return render_template("post_recipe_form.html", user=current_user, recipe=recipe, tags=Tag.query.all(), ingredients=Ingredient.query.all(), existing_images=existing_images, existing_video=existing_video)
+    return render_template("post_recipe_form.html", user=current_user, recipe=recipe, tags=cache.get("all_tags"), ingredients=cache.get("all_ingredients"), existing_images=existing_images, existing_video=existing_video)
 
 @views.route('/delete_recipe', methods=['POST'])
 @login_required
@@ -391,7 +407,16 @@ def delete_recipe():
                     db.session.delete(ingredient)
             db.session.delete(recipe)
             db.session.commit()
-        
+    
+    user_search_cache_key = f"user:{current_user.id}:search_result"
+    user_profile_cache_key = f"user:{current_user.id}:profile"
+    # Use delete_many for efficient multiple key deletion
+    cache.delete_many([
+        user_search_cache_key,
+        user_profile_cache_key,
+        "all_tags",
+        "all_ingredients"
+    ])
     return jsonify({}) 
 
 

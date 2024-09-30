@@ -10,7 +10,7 @@ from flask_migrate import Migrate
 db = SQLAlchemy()
 DB_NAME = "database"
 cache = Cache(config={'CACHE_TYPE': 'simple'})
-
+faiss_index, recipe_list = None, None
 
 def create_app():
     app = Flask(__name__)
@@ -30,7 +30,7 @@ def create_app():
     app.register_blueprint(auth, url_prefix='/auth')
     
     from .models import User 
-    from .models import generate_recipe_embeddings
+    # from .models import generate_recipe_embeddings
 
     create_database(app)
     
@@ -42,14 +42,21 @@ def create_app():
     def load_user(id):
         return User.query.get(int(id))
 
-    with app.app_context():
-        generate_recipe_embeddings()
+    # with app.app_context():
+    #     generate_recipe_embeddings()
+
     return app
 
 
 def create_database(app):
-    from .models import Recipe, Tag, Ingredient
+    from .models import Recipe, Tag, Ingredient, create_faiss_index
+    from sentence_transformers import SentenceTransformer
+    global faiss_index, recipe_list
+
     with app.app_context():
+
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+
         if not path.exists('instance/' + DB_NAME):
             tags = {}
             ingredients = {}
@@ -58,10 +65,10 @@ def create_database(app):
     
             for index, row in raw_recipes.iterrows():
                 ingredients_list = ast.literal_eval(row["ingredients"])
-                steps_list = ast.literal_eval(row["steps"])
+                m_steps = ast.literal_eval(row["steps"])
                 tags_list = ast.literal_eval(row["tags"])
     
-                steps_list = '|'.join(steps_list)
+                steps_list = '|'.join(m_steps)
                 
                 recipe = Recipe(name = row["name"], cook_time = int(row["minutes"]),steps = steps_list, desc = row["description"])
                 
@@ -92,10 +99,26 @@ def create_database(app):
                         
                     recipe.tags.append(db_tag)
 
+                
+                steps = [s.strip() for s in m_steps]
+                text_data = f"{recipe.name} {recipe.ingredients} {recipe.tags or ''} {recipe.desc}. {'. '.join(steps)}"
+                
+                # Generate embedding for the recipe
+                embedding = model.encode(text_data)
+                
+                # Update the recipe with the generated embedding
+                recipe.embedding = embedding.tolist()
+
+
                 db.session.add_all(db_tag_list)
                 db.session.add_all(db_ingredient_list)
                 db.session.add(recipe)
                 db.session.commit()
             
+                print(f"{recipe.id} : {recipe.embedding}")
+
             print('Created Database!')
+    
+        # faiss_index, recipe_list = create_faiss_index()
+
 

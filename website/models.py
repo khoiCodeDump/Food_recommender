@@ -2,6 +2,12 @@ from . import db
 from flask_login import UserMixin
 from dataclasses import dataclass
 from sentence_transformers import SentenceTransformer
+import faiss
+import numpy as np
+from website import faiss_index, recipe_list
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
 
 tag_table = db.Table('recipe_tag',
                     db.Column('recipe_id', db.Integer, db.ForeignKey('recipe.id')),
@@ -60,22 +66,75 @@ class Video(db.Model):
     recipe_id = db.Column(db.Integer, db.ForeignKey('recipe.id'))
 
 def generate_recipe_embeddings():
-    model = SentenceTransformer('all-MiniLM-L6-v2')  # Load the pre-trained model
-
+    
     # Query all recipes without embeddings
     recipes = Recipe.query.filter(Recipe.embedding == None).all()
-
-    for recipe in recipes:
-        steps = recipe.steps.split('|')
-        steps = [s.strip() for s in steps]
-        text_data = f"{recipe.name} {recipe.ingredients} {recipe.tags or ''} {recipe.desc}. {'. '.join(steps)}"
+    batch_size = 100
+    for i in range(0, len(recipes), batch_size):
+        batch = recipes[i:i+batch_size]
         
-        # Generate embedding for the recipe
-        embedding = model.encode(text_data)
+        for recipe in batch:
+            steps = recipe.steps.split('|')
+            steps = [s.strip() for s in steps]
+            text_data = f"{recipe.name} {recipe.ingredients} {recipe.tags or ''} {recipe.desc}. {'. '.join(steps)}"
+            
+            # Generate embedding for the recipe
+            embedding = model.encode(text_data)
+            
+            # Update the recipe with the generated embedding
+            recipe.embedding = embedding.tolist()
+            
+            print(f"Generated embedding for recipe {recipe.id}")
         
-        # Update the recipe with the generated embedding
-        recipe.embedding = embedding.tolist()
-
-    # Commit the changes to the database
-    db.session.commit()
+        # Commit the changes to the database for the batch
+        db.session.commit()
+        print(f"Committed batch of {i} to {i+batch_size} recipes")
+    
     print(f"Generated embeddings for {len(recipes)} recipes.")
+
+def create_faiss_index():
+    print("test0")
+    # Fetch all recipes and their embeddings
+    recipes = Recipe.query.filter(Recipe.embedding != None).all()
+    print("test1")
+    
+    # Get embeddings and convert them into a numpy array
+    embeddings = np.array([recipe.embedding for recipe in recipes])
+    print("test2")
+    
+    # Dimension of the embeddings (for FAISS)
+    embedding_dim = embeddings.shape[1]
+    print("test3")
+    
+    # Create a FAISS index (using L2 distance for simplicity)
+    index = faiss.IndexFlatL2(embedding_dim)
+    print("test4")
+    
+    # Add all recipe embeddings to the index
+    index.add(embeddings)
+    print("test5")
+    
+    return index, recipes
+
+def add_recipe_to_faiss(recipe):
+    
+    # Reshape the embedding to fit FAISS input
+    embedding = np.array([recipe.embedding], dtype=np.float32)
+    
+    # Add the embedding to the FAISS index
+    faiss_index.add(embedding)
+
+    # Optionally, save the updated FAISS index to disk
+    faiss.write_index(faiss_index, 'recipe_index.faiss')
+
+def semantic_search_recipes(user_query):
+    # Generate an embedding for the user's query
+    query_embedding = model.encode(user_query)
+    
+    # Search the FAISS index for the top_k most similar recipes
+    distances, indices = faiss_index.search(np.array([query_embedding]))
+    
+    # Retrieve the corresponding recipes
+    similar_recipes = [recipe_list[i] for i in indices[0]]
+    
+    return similar_recipes
