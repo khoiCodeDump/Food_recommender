@@ -4,10 +4,9 @@ from dataclasses import dataclass
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
-from website import faiss_index, recipe_list
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
-
+faiss_index = None
 
 tag_table = db.Table('recipe_tag',
                     db.Column('recipe_id', db.Integer, db.ForeignKey('recipe.id')),
@@ -92,32 +91,72 @@ def generate_recipe_embeddings():
     
     print(f"Generated embeddings for {len(recipes)} recipes.")
 
-def create_faiss_index():
-    print("test0")
-    # Fetch all recipes and their embeddings
-    recipes = Recipe.query.filter(Recipe.embedding != None).all()
-    print("test1")
+def set_faiss_index(index):
+    global faiss_index
+    faiss_index = index
+
+def create_faiss_index(batch_size=1000):
+
+    global faiss_index
     
-    # Get embeddings and convert them into a numpy array
-    embeddings = np.array([recipe.embedding for recipe in recipes])
-    print("test2")
-    
-    # Dimension of the embeddings (for FAISS)
-    embedding_dim = embeddings.shape[1]
-    print("test3")
-    
-    # Create a FAISS index (using L2 distance for simplicity)
-    index = faiss.IndexFlatL2(embedding_dim)
-    print("test4")
-    
-    # Add all recipe embeddings to the index
-    index.add(embeddings)
-    print("test5")
-    
-    return index, recipes
+    # Get total count of recipes with embeddings
+    total_recipes = Recipe.query.filter(Recipe.embedding != None).count()
+    print(f"Total recipes with embeddings: {total_recipes}")
+
+    # Adjust nlist based on total recipes
+    nlist = min(256, max(1, total_recipes // 39))  # Ensure at least 39 points per centroid
+    print(f"Using {nlist} clusters for {total_recipes} recipes")
+
+    try:
+        # Collect training data
+        training_data = []
+        training_size = max(10000, 39 * nlist)  # Ensure we have at least 10,000 points or 39 * nlist, whichever is larger
+        
+        print(f"Collecting {training_size} points for training")
+        for i in range(0, training_size, batch_size):
+            recipes = Recipe.query.filter(Recipe.embedding != None).with_entities(Recipe.embedding).offset(i).limit(batch_size).all()
+            if not recipes:
+                break
+            embeddings = np.array([recipe.embedding for recipe in recipes], dtype=np.float32)
+            training_data.append(embeddings)
+        
+        training_data = np.vstack(training_data)
+        print(f"Collected {len(training_data)} points for training")
+
+        # Create and train the index
+        embedding_dim = training_data.shape[1]
+        m = 8  # number of subquantizers
+        bits = 8  # bits per subquantizer
+
+        quantizer = faiss.IndexFlatL2(embedding_dim)
+        faiss_index = faiss.IndexIVFPQ(quantizer, embedding_dim, nlist, m, bits)
+        
+        print(f"Training index with {len(training_data)} points")
+        faiss_index.train(training_data)
+
+        # Add all embeddings to the index
+        for i in range(0, total_recipes, batch_size):
+            print(f"Processing batch {i//batch_size + 1}")
+            
+            recipes = Recipe.query.filter(Recipe.embedding != None).with_entities(Recipe.id, Recipe.embedding).offset(i).limit(batch_size).all()
+            
+            embeddings = np.array([recipe.embedding for recipe in recipes], dtype=np.float32)
+            faiss_index.add(embeddings)
+            
+            print(f"Added {len(recipes)} recipes to index. Total: {len()}")
+        
+        print("FAISS index creation completed successfully.")
+
+        return faiss_index
+        
+    except Exception as e:
+        print(f"An error occurred during index creation: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None, []
 
 def add_recipe_to_faiss(recipe):
-    
+    global faiss_index
     # Reshape the embedding to fit FAISS input
     embedding = np.array([recipe.embedding], dtype=np.float32)
     
@@ -127,14 +166,21 @@ def add_recipe_to_faiss(recipe):
     # Optionally, save the updated FAISS index to disk
     faiss.write_index(faiss_index, 'recipe_index.faiss')
 
-def semantic_search_recipes(user_query):
+def semantic_search_recipes(user_query, similarity_threshold=0.5):
+    global faiss_index
     # Generate an embedding for the user's query
     query_embedding = model.encode(user_query)
     
-    # Search the FAISS index for the top_k most similar recipes
-    distances, indices = faiss_index.search(np.array([query_embedding]))
+    all_recipes = Recipe.query.filter(Recipe.embedding != None).with_entities(Recipe.id, Recipe.embedding).all()
+
+    # Search the FAISS index for the most similar recipes
+    distances, indices = faiss_index.search(np.array([query_embedding], dtype=np.float32), len(all_recipes))
     
-    # Retrieve the corresponding recipes
-    similar_recipes = [recipe_list[i] for i in indices[0]]
+    # Filter results based on the similarity threshold
+    similar_recipes = []
+    for distance, index in zip(distances[0], indices[0]):
+        similarity = 1 / (1 + distance)  # Convert distance to similarity
+        if similarity >= similarity_threshold:
+            similar_recipes.append((all_recipes[index], similarity))
     
     return similar_recipes

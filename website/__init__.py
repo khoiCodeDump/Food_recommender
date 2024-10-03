@@ -6,11 +6,12 @@ import ast
 import pandas as pd
 from flask_caching import Cache
 from flask_migrate import Migrate
+import pickle
+
 
 db = SQLAlchemy()
 DB_NAME = "database"
 cache = Cache(config={'CACHE_TYPE': 'simple'})
-faiss_index, recipe_list = None, None
 
 def create_app():
     app = Flask(__name__)
@@ -49,9 +50,8 @@ def create_app():
 
 
 def create_database(app):
-    from .models import Recipe, Tag, Ingredient, create_faiss_index
+    from .models import Recipe, Tag, Ingredient, create_faiss_index, set_faiss_index
     from sentence_transformers import SentenceTransformer
-    global faiss_index, recipe_list
 
     with app.app_context():
 
@@ -118,7 +118,14 @@ def create_database(app):
                 print(f"{recipe.id} : {recipe.embedding}")
 
             print('Created Database!')
-    
-        # faiss_index, recipe_list = create_faiss_index()
+        
+
+        if not path.exists('faiss_index.pkl'):
+            m_faiss_index = create_faiss_index()
+            with open('faiss_index.pkl', 'wb') as f:
+                pickle.dump(m_faiss_index, f)
+        else:
+            with open('faiss_index.pkl', 'rb') as f:
+                set_faiss_index(pickle.load(f))
 
 

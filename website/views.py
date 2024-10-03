@@ -111,80 +111,89 @@ def get_recipe(meal_id):
                            image_urls=image_urls,
                            video_urls=video_urls)
 
-@views.route('/search', methods=['POST'])
-def search():
-    tags = {tag.strip() for tag in set(request.form.get('Tags', '').split(',')) if tag.strip()}
-    ingredients = {ingredient.strip() for ingredient in set(request.form.get('Ingredients', '').split(',')) if ingredient.strip()}
-    search_field = bleach.clean(request.form.get("search-field"))
-
-    if search_field == '' and not tags and not ingredients:
-        # Redirect to the referring page or to the home page if there's no referrer
-        return redirect(request.referrer or url_for('views.home'))
-
-    allTags = list(tags)
-    allIngredients = list(ingredients)
-    allNames = []
-
-    # search_field = re.findall(r'\w+', search_field)
-    search_field = search_field.split(",")
-    
-    result = None
-    recipes = set()
-    
-    for tag in tags:
-        tag_res = Tag.query.filter(Tag.name==tag).first()
-        result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
-
-    for ingredient in ingredients:
-        ingredient_res = Ingredient.query.filter(Ingredient.name==ingredient).first()
-        result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
-    
-    for field in search_field:
-        field = field.strip()
-        
-        ingredient_res = Ingredient.query.filter(Ingredient.name==field).first()
-        if ingredient_res:
-            allIngredients.append(str(field))
-            result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
-
-        tag_res = Tag.query.filter(Tag.name==field).first()
-        if tag_res:
-            allTags.append(str(field))
-            result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
-            continue
-        
-        if field:
-            name_res = Recipe.query.filter(Recipe.name.contains(field))
-            if name_res:        
-                allNames.append(str(field))
-                result = search_recipes(recipes=recipes, query_res=name_res, result=result)
-    
-    _recipes = []
-    for result_recipe in result:
-        _recipes.append(result_recipe.id)
-
-    cache.set(f"user:{current_user.id}:search_result", _recipes)
-                
-    data = {"route": 2}
-    search_field = {
-        "tags" : allTags,
-        "ingredients" : allIngredients,
-        "names" : allNames
-    }
-    return render_template("search_view.html", data=data, search_field= search_field, tags=cache.get("all_tags"), ingredients=cache.get("all_ingredients"))
 # @views.route('/search', methods=['POST'])
 # def search():
-#     user_query = bleach.clean(request.form.get("search-field"))
-    
-#     if not user_query:
+#     tags = {tag.strip() for tag in set(request.form.get('Tags', '').split(',')) if tag.strip()}
+#     ingredients = {ingredient.strip() for ingredient in set(request.form.get('Ingredients', '').split(',')) if ingredient.strip()}
+#     search_field = bleach.clean(request.form.get("search-field"))
+
+#     if search_field == '' and not tags and not ingredients:
+#         # Redirect to the referring page or to the home page if there's no referrer
 #         return redirect(request.referrer or url_for('views.home'))
+
+#     allTags = list(tags)
+#     allIngredients = list(ingredients)
+#     allNames = []
+
+#     # search_field = re.findall(r'\w+', search_field)
+#     search_field = search_field.split(",")
     
-#     # Query the fine-tuned OpenAI model with the user's search query
-#     results = search_recipes(user_query, top_k=5)
+#     result = None
+#     recipes = set()
     
-#     cache.set(f"user:{current_user.id}:search_result", results)
-#     # Return the search results to the user
-#     return render_template('search_results.html', recipes=results)
+#     for tag in tags:
+#         tag_res = Tag.query.filter(Tag.name==tag).first()
+#         result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
+
+#     for ingredient in ingredients:
+#         ingredient_res = Ingredient.query.filter(Ingredient.name==ingredient).first()
+#         result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
+    
+#     for field in search_field:
+#         field = field.strip()
+        
+#         ingredient_res = Ingredient.query.filter(Ingredient.name==field).first()
+#         if ingredient_res:
+#             allIngredients.append(str(field))
+#             result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
+
+#         tag_res = Tag.query.filter(Tag.name==field).first()
+#         if tag_res:
+#             allTags.append(str(field))
+#             result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
+#             continue
+        
+#         if field:
+#             name_res = Recipe.query.filter(Recipe.name.contains(field))
+#             if name_res:        
+#                 allNames.append(str(field))
+#                 result = search_recipes(recipes=recipes, query_res=name_res, result=result)
+    
+#     _recipes = []
+#     for result_recipe in result:
+#         _recipes.append(result_recipe.id)
+
+#     cache.set(f"user:{current_user.id}:search_result", _recipes)
+                
+#     data = {"route": 2}
+#     search_field = {
+#         "tags" : allTags,
+#         "ingredients" : allIngredients,
+#         "names" : allNames
+#     }
+#     return render_template("search_view.html", data=data, search_field= search_field, tags=cache.get("all_tags"), ingredients=cache.get("all_ingredients"))
+@views.route('/search', methods=['POST'])
+def search():
+    user_query = bleach.clean(request.form.get("search-field"))
+    
+    if not user_query:
+        return redirect(request.referrer or url_for('views.home'))
+    
+    
+    # Query the fine-tuned OpenAI model with the user's search query
+    results = semantic_search_recipes(user_query, similarity_threshold=0.6)
+    
+    results_ids = [result[0][0] for result in results]
+    
+    cache.set(f"user:{current_user.id}:search_result", results_ids)
+    # Return the search results to the user
+    data = {"route": 2}
+    # search_field = {
+    #     "tags" : {},
+    #     "ingredients" : {},
+    #     "names" : user_query
+    # }
+    return render_template("search_view.html", data=data, search_field= user_query, tags=cache.get("all_tags"), ingredients=cache.get("all_ingredients"))
 
 @views.route('/load_search', methods=['GET'])
 def load_search():
@@ -192,16 +201,12 @@ def load_search():
     time.sleep(0.2)
     count = request.args.get('count', 0, type=int)
     try:
-        # with open('data/' + str(current_user.id) + '/search_result.pkl', 'rb') as f:
-        #     recipe_list = pickle.load(f)
 
         recipe_list = cache.get(f"user:{current_user.id}:search_result")
         res = Recipe.query.filter(Recipe.id.in_(recipe_list[count: count + quantity]))
         data = {}
         for stuff in res:
-            print("test0")
             first_image = stuff.images.first()
-            print("test1")
             image_url = url_for('views.serve_image', filename=first_image.filename) if first_image else url_for('static', filename='images/food_image_empty.png')
             data[stuff.id] = {
                 'name': stuff.name,
