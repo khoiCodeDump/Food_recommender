@@ -143,7 +143,7 @@ def create_faiss_index(batch_size=1000):
             embeddings = np.array([recipe.embedding for recipe in recipes], dtype=np.float32)
             faiss_index.add(embeddings)
             
-            print(f"Added {len(recipes)} recipes to index. Total: {len()}")
+            print(f"Added {len(recipes)} recipes to index. Total: {total_recipes}")
         
         print("FAISS index creation completed successfully.")
 
@@ -164,23 +164,20 @@ def add_recipe_to_faiss(recipe):
     faiss_index.add(embedding)
 
     # Optionally, save the updated FAISS index to disk
-    faiss.write_index(faiss_index, 'recipe_index.faiss')
+    faiss.write_index(faiss_index, f'recipe_index_{model}.faiss')
 
-def semantic_search_recipes(user_query, similarity_threshold=0.5):
+def semantic_search_recipes(user_query, all_recipes_embeddings, k_elements, similarity_threshold=0.50):
     global faiss_index
     # Generate an embedding for the user's query
     query_embedding = model.encode(user_query)
-    
-    all_recipes = Recipe.query.filter(Recipe.embedding != None).with_entities(Recipe.id, Recipe.embedding).all()
 
     # Search the FAISS index for the most similar recipes
-    distances, indices = faiss_index.search(np.array([query_embedding], dtype=np.float32), len(all_recipes))
+    distances, indices = faiss_index.search(np.array([query_embedding], dtype=np.float32), k_elements)
     
     # Filter results based on the similarity threshold
     similar_recipes = []
     for distance, index in zip(distances[0], indices[0]):
         similarity = 1 / (1 + distance)  # Convert distance to similarity
         if similarity >= similarity_threshold:
-            similar_recipes.append((all_recipes[index], similarity))
-    
+            similar_recipes.append((all_recipes_embeddings[index], similarity))
     return similar_recipes

@@ -6,7 +6,7 @@ import ast
 import pandas as pd
 from flask_caching import Cache
 from flask_migrate import Migrate
-import pickle
+import faiss
 
 
 db = SQLAlchemy()
@@ -33,7 +33,7 @@ def create_app():
     from .models import User 
     # from .models import generate_recipe_embeddings
 
-    create_database(app)
+    create_database(app, 'all-MiniLM-L6-v2')
     
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'
@@ -48,14 +48,37 @@ def create_app():
 
     return app
 
+def update_recipes_embeddings(model):
+    from .models import Recipe
 
-def create_database(app):
+    if path.exists('instance/' + DB_NAME):
+        print("Updating recipe embeddings...")
+
+        # Fetch all recipes
+        recipes = Recipe.query.all()
+        
+        for recipe in recipes:
+            print(f"Updating recipe {recipe.id}")
+            text_data = f"{recipe.name} {recipe.ingredients} {recipe.tags or ''} {recipe.desc}. {recipe.steps}"
+            # Generate new embedding for each recipe
+            new_embedding = model.encode(text_data)  # Assuming 'text' is the field with the recipe content
+            
+            # Update the recipe's embedding
+            recipe.embedding = new_embedding.tolist()  # Convert numpy array to list if needed
+        
+        # Commit the changes to the database
+        db.session.commit()
+        print("Recipe embeddings updated successfully.")
+    else:
+        print("Database does not exist.")
+
+def create_database(app, model_name):
     from .models import Recipe, Tag, Ingredient, create_faiss_index, set_faiss_index
     from sentence_transformers import SentenceTransformer
 
     with app.app_context():
 
-        model = SentenceTransformer('all-MiniLM-L6-v2')
+        model = SentenceTransformer(model_name)
 
         if not path.exists('instance/' + DB_NAME):
             tags = {}
@@ -120,12 +143,11 @@ def create_database(app):
             print('Created Database!')
         
 
-        if not path.exists('faiss_index.pkl'):
+        if not path.exists(f'recipe_index_{model_name}.faiss'):
+            update_recipes_embeddings(model)
             m_faiss_index = create_faiss_index()
-            with open('faiss_index.pkl', 'wb') as f:
-                pickle.dump(m_faiss_index, f)
+            faiss.write_index(m_faiss_index, f'recipe_index_{model_name}.faiss')
         else:
-            with open('faiss_index.pkl', 'rb') as f:
-                set_faiss_index(pickle.load(f))
+            set_faiss_index(faiss.read_index(f'recipe_index_{model_name}.faiss'))
 
 

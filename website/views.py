@@ -1,11 +1,10 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, make_response, abort
 from flask_login import login_required, current_user
-from .models import Recipe, Tag, Ingredient, Image, Video, semantic_search_recipes
+from .models import Recipe, Tag, Ingredient, Image, Video, semantic_search_recipes, add_recipe_to_faiss
 from . import db
 from werkzeug.utils import secure_filename
 from .utils import allowed_file, search_recipes, serve_media, query_openai
 import json
-# import pickle
 import os
 import time
 import bleach
@@ -22,6 +21,7 @@ def home():
     data = {"route": 0}
     all_tags = cache.get('all_tags')
     all_ingredients = cache.get('all_ingredients')
+ 
 
     if all_tags is None:
         all_tags = Tag.query.all()
@@ -179,9 +179,17 @@ def search():
     if not user_query:
         return redirect(request.referrer or url_for('views.home'))
     
-    
+    all_recipes_embeddings = cache.get('all_recipes_embeddings')
+
+    if all_recipes_embeddings is None:
+        all_recipes_embeddings = Recipe.query.filter(Recipe.embedding != None).with_entities(Recipe.id, Recipe.embedding).all()
+        cache.set('all_recipes_embeddings', all_recipes_embeddings)
+        cache.set('all_recipes_embeddings_len', len(all_recipes_embeddings))
+        print("New recipes embeddings cache")
+        print(f"all_recipes_len: {cache.get('all_recipes_embeddings_len')}")
+
     # Query the fine-tuned OpenAI model with the user's search query
-    results = semantic_search_recipes(user_query, similarity_threshold=0.6)
+    results = semantic_search_recipes(user_query=user_query, all_recipes_embeddings=all_recipes_embeddings, k_elements=cache.get('all_recipes_embeddings_len'))
     
     results_ids = [result[0][0] for result in results]
     
@@ -369,10 +377,14 @@ def post_recipe():
             user_search_cache_key,
             user_profile_cache_key,
             "all_tags",
-            "all_ingredients"
+            "all_ingredients",
+            "all_recipes_embeddings"
         ])
         #Commit changes to database
         db.session.commit()
+
+        add_recipe_to_faiss(recipe=recipe)
+
         return redirect(url_for('views.get_recipe', meal_id=recipe.id))
     
     # GET request
