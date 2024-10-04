@@ -175,10 +175,13 @@ def get_recipe(meal_id):
 @views.route('/search', methods=['POST'])
 def search():
     user_query = bleach.clean(request.form.get("search-field"))
-    
+    tags = [tag.strip() for tag in set(request.form.get('Tags', '').split(',')) if tag.strip()]
+    ingredients = [ingredient.strip() for ingredient in set(request.form.get('Ingredients', '').split(',')) if ingredient.strip()]
+    user_query = ",".join(tags) + ",".join(ingredients) + "," + user_query
     if not user_query:
         return redirect(request.referrer or url_for('views.home'))
     
+   
     all_recipes_embeddings = cache.get('all_recipes_embeddings')
 
     if all_recipes_embeddings is None:

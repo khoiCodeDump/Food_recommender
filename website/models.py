@@ -181,3 +181,4 @@ def semantic_search_recipes(user_query, all_recipes_embeddings, k_elements, simi
         if similarity >= similarity_threshold:
             similar_recipes.append((all_recipes_embeddings[index], similarity))
     return similar_recipes
+    
