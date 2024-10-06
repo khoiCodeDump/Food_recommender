@@ -5,7 +5,8 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
+model_name = 'all-MiniLM-L6-v2'
+model = SentenceTransformer(model_name)
 faiss_index = None
 
 tag_table = db.Table('recipe_tag',
@@ -159,14 +160,44 @@ def add_recipe_to_faiss(recipe):
     global faiss_index
     # Reshape the embedding to fit FAISS input
     embedding = np.array([recipe.embedding], dtype=np.float32)
-    
     # Add the embedding to the FAISS index
     faiss_index.add(embedding)
 
     # Optionally, save the updated FAISS index to disk
-    faiss.write_index(faiss_index, f'recipe_index_{model}.faiss')
+    faiss.write_index(faiss_index, f'recipe_index_{model_name}.faiss')
 
-def semantic_search_recipes(user_query, all_recipes_embeddings, k_elements, similarity_threshold=0.50):
+def remove_recipe_from_faiss(recipe_id):
+    global faiss_index
+    
+    # Get all recipe embeddings and their IDs
+    recipes = Recipe.query.filter(Recipe.embedding != None).with_entities(Recipe.id, Recipe.embedding).all()
+    
+    # Filter out the recipe you want to remove
+    filtered_recipes = [(id, emb) for id, emb in recipes if id != recipe_id]
+    
+    # Extract embeddings and IDs
+    embeddings = np.array([emb for _, emb in filtered_recipes], dtype=np.float32)
+    ids = [id for id, _ in filtered_recipes]
+    
+    # Recreate the FAISS index
+    embedding_dim = embeddings.shape[1]
+    quantizer = faiss.IndexFlatL2(embedding_dim)
+    nlist = min(256, max(1, len(embeddings) // 39))
+    m = 8
+    bits = 8
+    new_faiss_index = faiss.IndexIVFPQ(quantizer, embedding_dim, nlist, m, bits)
+    
+    # Train and add the filtered embeddings
+    new_faiss_index.train(embeddings)
+    new_faiss_index.add(embeddings)
+    
+    # Update the global index
+    faiss_index = new_faiss_index
+    
+    # Optionally, save the updated FAISS index to disk
+    faiss.write_index(faiss_index, f'recipe_index_{model_name}.faiss')
+
+def semantic_search_recipes(user_query, all_recipes_ids, k_elements, similarity_threshold=0.50):
     global faiss_index
     # Generate an embedding for the user's query
     query_embedding = model.encode(user_query)
@@ -179,6 +210,6 @@ def semantic_search_recipes(user_query, all_recipes_embeddings, k_elements, simi
     for distance, index in zip(distances[0], indices[0]):
         similarity = 1 / (1 + distance)  # Convert distance to similarity
         if similarity >= similarity_threshold:
-            similar_recipes.append((all_recipes_embeddings[index], similarity))
+            similar_recipes.append(all_recipes_ids[index])
     return similar_recipes
     

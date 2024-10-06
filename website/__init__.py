@@ -144,10 +144,16 @@ def create_database(app, model_name):
         
 
         if not path.exists(f'recipe_index_{model_name}.faiss'):
-            update_recipes_embeddings(model)
+            # update_recipes_embeddings(model)
             m_faiss_index = create_faiss_index()
             faiss.write_index(m_faiss_index, f'recipe_index_{model_name}.faiss')
         else:
             set_faiss_index(faiss.read_index(f'recipe_index_{model_name}.faiss'))
+
+        all_recipes_ids = [recipe.id for recipe in Recipe.query.with_entities(Recipe.id).all()]
+        cache.set('all_recipes_ids', all_recipes_ids)
+        cache.set('all_recipes_ids_len', len(all_recipes_ids))
+
+
 
 
