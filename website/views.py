@@ -1,26 +1,27 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, make_response, abort
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, make_response, abort, current_app, send_file, session
 from flask_login import login_required, current_user
 from .models import Recipe, Tag, Ingredient, Image, Video, semantic_search_recipes, add_recipe_to_faiss, remove_recipe_from_faiss
 from . import db
 from werkzeug.utils import secure_filename
-from .utils import allowed_file, search_recipes, serve_media, query_openai
+from .utils import allowed_file, serve_media, query_openai
 import json
 import os
 import time
 import bleach
-from website import cache  
+from website import cache, model_name
 from sentence_transformers import SentenceTransformer
-
+import asyncio
+import re
+import uuid
 
 views = Blueprint('views', __name__)
 quantity = 45
-model = SentenceTransformer('all-MiniLM-L6-v2')
+model = SentenceTransformer(model_name)
 
 @views.route('/', methods=['GET', 'POST'])
 def home():
     data = {"route": 0}
     return render_template("home.html", data=data )
-
 
 @cache.cached(timeout=60)  # Use the cache decorator directly
 @views.route('/load', methods=['GET'])
@@ -47,20 +48,134 @@ def load():
     return res
 
 @views.route('/images/<path:filename>', methods=['GET'])
-def serve_image(filename):
-    return serve_media(filename, 'images')
+async def serve_image(filename):
+    try:
+        file_path = os.path.join(current_app.root_path, 'images', filename)
+        
+        current_app.logger.info(f"Attempting to serve image: {file_path}")
+        
+        if not os.path.exists(file_path):
+            current_app.logger.error(f"File not found: {file_path}")
+            abort(404)
+        
+        file_size = os.path.getsize(file_path)
+        range_header = request.headers.get('Range', None)
+
+        if range_header:
+            byte1, byte2 = 0, None
+            match = re.search(r'(\d+)-(\d*)', range_header)
+            groups = match.groups()
+
+            if groups[0]:
+                byte1 = int(groups[0])
+            if groups[1]:
+                byte2 = int(groups[1])
+
+            if byte2 is None:
+                byte2 = file_size - 1
+            length = byte2 - byte1 + 1
+
+            loop = asyncio.get_event_loop()
+            def read_file_chunk():
+                with open(file_path, 'rb') as f:
+                    f.seek(byte1)
+                    return f.read(length)
+
+            chunk = await loop.run_in_executor(None, read_file_chunk)
+
+            resp = current_app.response_class(
+                chunk,
+                206,
+                mimetype=f'image/{os.path.splitext(filename)[1][1:]}',
+                direct_passthrough=True,
+            )
+            resp.headers.set('Content-Range', f'bytes {byte1}-{byte2}/{file_size}')
+            resp.headers.set('Accept-Ranges', 'bytes')
+            resp.headers.set('Content-Length', str(length))
+        else:
+            resp = send_file(file_path)
+
+        return resp
+
+    except Exception as e:
+        current_app.logger.error(f"Error serving image {filename}: {str(e)}")
+        abort(500)
 
 @views.route('/videos/<path:filename>', methods=['GET'])
-def serve_video(filename):
-    return serve_media(filename, 'videos')
+async def serve_video(filename):
+    try:
+        file_path = os.path.join(current_app.root_path, 'videos', filename)
+        
+        current_app.logger.info(f"Attempting to serve video: {file_path}")
+        
+        if not os.path.exists(file_path):
+            current_app.logger.error(f"File not found: {file_path}")
+            abort(404)
+        
+        file_size = os.path.getsize(file_path)
+        range_header = request.headers.get('Range', None)
 
-@views.route('/recipes/<meal_id>', methods=['GET'])
-def get_recipe(meal_id):
-    cur_recipe = Recipe.query.get(meal_id)
+        if range_header:
+            byte1, byte2 = 0, None
+            match = re.search(r'(\d+)-(\d*)', range_header)
+            groups = match.groups()
+
+            if groups[0]:
+                byte1 = int(groups[0])
+            if groups[1]:
+                byte2 = int(groups[1])
+
+            if byte2 is None:
+                byte2 = file_size - 1
+            length = byte2 - byte1 + 1
+
+            loop = asyncio.get_event_loop()
+            def read_file_chunk():
+                with open(file_path, 'rb') as f:
+                    f.seek(byte1)
+                    return f.read(length)
+
+            chunk = await loop.run_in_executor(None, read_file_chunk)
+
+            resp = current_app.response_class(
+                chunk,
+                206,
+                mimetype=f'video/{os.path.splitext(filename)[1][1:]}',
+                direct_passthrough=True,
+            )
+            resp.headers.set('Content-Range', f'bytes {byte1}-{byte2}/{file_size}')
+            resp.headers.set('Accept-Ranges', 'bytes')
+            resp.headers.set('Content-Length', str(length))
+        else:
+            def read_file():
+                with open(file_path, 'rb') as f:
+                    return f.read()
+
+            loop = asyncio.get_event_loop()
+            file_content = await loop.run_in_executor(None, read_file)
+
+            resp = current_app.response_class(
+                file_content,
+                200,
+                mimetype=f'video/{os.path.splitext(filename)[1][1:]}',
+                direct_passthrough=True,
+            )
+            resp.headers.set('Content-Length', str(file_size))
+
+        return resp
+
+    except Exception as e:
+        current_app.logger.error(f"Error serving video {filename}: {str(e)}")
+        abort(500)
+
+@views.route('/recipes/<recipe_id>', methods=['GET'])
+def get_recipe(recipe_id):
+    cur_recipe = Recipe.query.get(recipe_id)
     temp = cur_recipe.steps
     typeList = "ol"
-    if temp[0] >= "0" and temp[0] <= "9":
-        typeList = "ul"
+    if temp:
+        if temp[0] >= "0" and temp[0] <= "9":
+            typeList = "ul"
     
     # Get all valid image URLs for this recipe
     image_urls = []
@@ -111,7 +226,14 @@ def search():
     # Query the fine-tuned OpenAI model with the user's search query
     results_ids = semantic_search_recipes(user_query=user_query, all_recipes_ids=all_recipes_ids, k_elements=all_recipes_ids_len)
         
-    cache.set(f"user:{current_user.id}:search_result", results_ids)
+    if current_user.is_authenticated:
+        user_id = current_user.id
+    else:
+        if 'anonymous_id' not in session:
+            session['anonymous_id'] = str(uuid.uuid4())
+        user_id = session['anonymous_id']
+
+    cache.set(f"user:{user_id}:search_result", results_ids)
     # Return the search results to the user
     data = {"route": 2}
 
@@ -124,8 +246,11 @@ def load_search():
     time.sleep(0.2)
     count = request.args.get('count', 0, type=int)
     try:
-
-        recipe_list = cache.get(f"user:{current_user.id}:search_result")
+        if current_user.is_authenticated:
+            user_id = current_user.id
+        else:
+            user_id = session.get('anonymous_id')
+        recipe_list = cache.get(f"user:{user_id}:search_result")
         res = Recipe.query.filter(Recipe.id.in_(recipe_list[count: count + quantity]))
         data = {}
         for stuff in res:
@@ -136,8 +261,8 @@ def load_search():
                 'image_url': image_url
             }
         res = make_response(data)
-    except:
-        print("No more posts")
+    except Exception as e:
+        print(f"Error loading posts: {str(e)}")
         res = make_response(jsonify({}), 200)
 
     return res
@@ -198,14 +323,10 @@ def post_recipe():
         recipe.cook_time = bleach.clean(request.form.get("Cook_time"))
         recipe.desc = bleach.clean(request.form.get("Description"))
         
-        print(recipe.name)
         # Handle steps
         steps = bleach.clean(request.form.get("Instructions"))
         recipe.steps = steps  # This will now be a |-separated string of steps
         
-        # Ensure user directory exists
-        user_data_dir = os.path.join('data', str(current_user.id))
-        os.makedirs(user_data_dir, exist_ok=True)
 
         # Handle existing images
         existing_images = [value for key, value in request.form.items() if key.startswith('existing_images_')]
@@ -216,7 +337,8 @@ def post_recipe():
                 os.remove(image.url)
                 db.session.delete(image)
 
-
+        # Ensure images directory exists
+        image_dir = os.path.join(current_app.root_path, 'images')
         # Handle new image uploads
         new_images = []
         for key, value in request.files.items():
@@ -225,11 +347,13 @@ def post_recipe():
         for image in new_images:
             if image and allowed_file(image.filename):
                 filename = secure_filename(image.filename)
-                image_path = os.path.join(user_data_dir, 'images', filename)
+                filename = f"{uuid.uuid4().hex}{os.path.splitext(filename)[1]}"
+                image_path = os.path.join(image_dir, filename)
                 os.makedirs(os.path.dirname(image_path), exist_ok=True)
                 image.save(image_path)
                 new_image = Image(filename=filename, url=image_path, recipe=recipe)
                 db.session.add(new_image)
+
 
         # Handle existing video
         existing_video = request.form.get('existing_video')
@@ -239,11 +363,14 @@ def post_recipe():
                 os.remove(old_video.url)
                 db.session.delete(old_video)
 
+        # Ensure videos directory exists
+        video_dir = os.path.join(current_app.root_path, 'videos')
         # Handle new video upload
         new_video = request.files.get('new_video')
         if new_video and allowed_file(new_video.filename):
             filename = secure_filename(new_video.filename)
-            video_path = os.path.join(user_data_dir, 'videos', filename)
+            filename = f"{uuid.uuid4().hex}{os.path.splitext(filename)[1]}"
+            video_path = os.path.join(video_dir, filename)
             os.makedirs(os.path.dirname(video_path), exist_ok=True)
             new_video.save(video_path)
             new_video = Video(filename=filename, url=video_path, recipe=recipe)
@@ -254,14 +381,21 @@ def post_recipe():
         recipe.ingredients = []
 
         # Remove any empty strings
-        tags = {tag.strip() for tag in set(request.form.get('TagsInput', '').split(',')) if tag.strip()}
-        ingredients = {ingredient.strip() for ingredient in set(request.form.get('IngredientsInput', '').split(',')) if ingredient.strip()}
+        tags_input = {tag.strip() for tag in set(request.form.get('TagsInput', '').split(','))}
+        tags_component = set(request.form.get('Tags', '').split(','))
+        tags = tags_input.union(tags_component)
+
+        ingredients_input = {ingredient.strip() for ingredient in set(request.form.get('IngredientsInput', '').split(','))}
+        ingredients_component = set(request.form.get('Ingredients', '').split(','))
+        ingredients = ingredients_input.union(ingredients_component)
         # Fetch existing tags and ingredients in one query
         existing_tags = {tag.name: tag for tag in Tag.query.filter(Tag.name.in_(tags)).all()}
         existing_ingredients = {ingredient.name: ingredient for ingredient in Ingredient.query.filter(Ingredient.name.in_(ingredients)).all()}
 
         # Process tags
         for tag_name in tags:
+            if not tag_name:
+                continue
             tag = existing_tags.get(tag_name)
             if not tag:
                 tag = Tag(name=tag_name)
@@ -270,6 +404,8 @@ def post_recipe():
 
         # Process ingredients
         for ingredient_name in ingredients:
+            if not ingredient_name:
+                continue
             ingredient = existing_ingredients.get(ingredient_name)
             if not ingredient:
                 ingredient = Ingredient(name=ingredient_name)
@@ -277,9 +413,17 @@ def post_recipe():
             recipe.ingredients.append(ingredient)
 
 
-        steps = recipe.steps.split('|')
-        steps = [s.strip() for s in steps]
-        text_data = f"{recipe.name} {recipe.ingredients} {recipe.tags or ''} {recipe.desc}. {'. '.join(steps)}"
+        ingredients_text = ', '.join([ingredient.name for ingredient in recipe.ingredients])
+        tags_text = ', '.join([tag.name for tag in recipe.tags])
+        steps_text = '. '.join(recipe.steps.split('|'))
+        
+        text_data = (
+            f"Recipe Name: {recipe.name}. "
+            f"Ingredients: {ingredients_text}. "
+            f"Tags: {tags_text}. "
+            f"Description: {recipe.desc}. "
+            f"Steps: {steps_text}."
+        )
         
         # Generate embedding for the recipe
         embedding = model.encode(text_data)
@@ -299,7 +443,7 @@ def post_recipe():
         cache.set('all_recipes_ids', all_recipes_ids)
         cache.set('all_recipes_ids_len', len(all_recipes_ids))
 
-        return redirect(url_for('views.get_recipe', meal_id=recipe.id))
+        return redirect(url_for('views.get_recipe', recipe_id=recipe.id))
     
     tags = Tag.query.all()
     ingredients = Ingredient.query.all()
@@ -327,6 +471,7 @@ def delete_recipe():
     
     if recipe:
         if recipe.user_id == current_user.id:
+            remove_recipe_from_faiss(recipe=recipe)
             for image in recipe.images:
                 os.remove(image.url)
                 db.session.delete(image)

@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
+from website import model_name
+import re
 
-model_name = 'all-MiniLM-L6-v2'
 model = SentenceTransformer(model_name)
 faiss_index = None
 
@@ -74,9 +75,17 @@ def generate_recipe_embeddings():
         batch = recipes[i:i+batch_size]
         
         for recipe in batch:
-            steps = recipe.steps.split('|')
-            steps = [s.strip() for s in steps]
-            text_data = f"{recipe.name} {recipe.ingredients} {recipe.tags or ''} {recipe.desc}. {'. '.join(steps)}"
+            ingredients_text = ', '.join([ingredient.name for ingredient in recipe.ingredients])
+            tags_text = ', '.join([tag.name for tag in recipe.tags])
+            steps_text = '. '.join(recipe.steps.split('|'))
+            
+            text_data = (
+                f"Recipe Name: {recipe.name}. "
+                f"Ingredients: {ingredients_text}. "
+                f"Tags: {tags_text}. "
+                f"Description: {recipe.desc}. "
+                f"Steps: {steps_text}."
+            )
             
             # Generate embedding for the recipe
             embedding = model.encode(text_data)
@@ -160,45 +169,72 @@ def add_recipe_to_faiss(recipe):
     global faiss_index
     # Reshape the embedding to fit FAISS input
     embedding = np.array([recipe.embedding], dtype=np.float32)
+
+    index_length = faiss_index.ntotal
+    print(f"Before add: Number of vectors in FAISS index: {index_length}")
     # Add the embedding to the FAISS index
     faiss_index.add(embedding)
 
+    index_length = faiss_index.ntotal
+    print(f"After add: Number of vectors in FAISS index: {index_length}")
     # Optionally, save the updated FAISS index to disk
     faiss.write_index(faiss_index, f'recipe_index_{model_name}.faiss')
 
-def remove_recipe_from_faiss(recipe_id):
+def remove_recipe_from_faiss(recipe):
     global faiss_index
+
+    # Convert the recipe embedding to numpy array
+    recipe_embedding = np.array([recipe.embedding], dtype=np.float32)
+
+    # Search for the exact embedding in the FAISS index
+    _, indices = faiss_index.search(recipe_embedding, 1)
     
-    # Get all recipe embeddings and their IDs
-    recipes = Recipe.query.filter(Recipe.embedding != None).with_entities(Recipe.id, Recipe.embedding).all()
-    
-    # Filter out the recipe you want to remove
-    filtered_recipes = [(id, emb) for id, emb in recipes if id != recipe_id]
-    
-    # Extract embeddings and IDs
-    embeddings = np.array([emb for _, emb in filtered_recipes], dtype=np.float32)
-    ids = [id for id, _ in filtered_recipes]
-    
-    # Recreate the FAISS index
-    embedding_dim = embeddings.shape[1]
-    quantizer = faiss.IndexFlatL2(embedding_dim)
-    nlist = min(256, max(1, len(embeddings) // 39))
-    m = 8
-    bits = 8
-    new_faiss_index = faiss.IndexIVFPQ(quantizer, embedding_dim, nlist, m, bits)
-    
-    # Train and add the filtered embeddings
-    new_faiss_index.train(embeddings)
-    new_faiss_index.add(embeddings)
-    
-    # Update the global index
-    faiss_index = new_faiss_index
-    
+    if indices[0][0] != -1:
+        # Remove the embedding from the FAISS index
+        faiss_index.remove_ids(np.array([indices[0][0]]))
+        print(f"Removed recipe {recipe.id} from FAISS index.")
+        
+    else:
+        print(f"Recipe {recipe.id} not found in FAISS index.")
+
     # Optionally, save the updated FAISS index to disk
     faiss.write_index(faiss_index, f'recipe_index_{model_name}.faiss')
 
-def semantic_search_recipes(user_query, all_recipes_ids, k_elements, similarity_threshold=0.50):
+def search_recipes(recipes, query_res, result):
+    clone_recipe_ids = set()
+
+    if len(recipes) == 0:
+        if hasattr(query_res, 'recipes'):
+            for recipe in query_res.recipes:
+                recipes.add(recipe.id)
+        else:
+            for recipe in query_res:
+                recipes.add(recipe.id)
+    else:
+        if hasattr(query_res, 'recipes'):   
+            for recipe in query_res.recipes:
+                if recipe.id in recipes:
+                    clone_recipe_ids.add(recipe.id)
+        else:
+            for recipe in query_res:
+                if recipe.id in recipes:
+                    clone_recipe_ids.add(recipe.id)
+        
+        recipes = clone_recipe_ids
+        clone_recipe_ids = set()
+        
+    if result is None:
+        res = Recipe.query.filter(Recipe.id.in_(list(recipes)))
+    else:
+        res = result.filter(Recipe.id.in_(list(recipes)))
+        
+    return res
+
+def semantic_search_recipes(user_query, all_recipes_ids, k_elements, similarity_threshold=0.1):
+    
     global faiss_index
+    
+    
     # Generate an embedding for the user's query
     query_embedding = model.encode(user_query)
 
@@ -210,6 +246,32 @@ def semantic_search_recipes(user_query, all_recipes_ids, k_elements, similarity_
     for distance, index in zip(distances[0], indices[0]):
         similarity = 1 / (1 + distance)  # Convert distance to similarity
         if similarity >= similarity_threshold:
+            print(similarity)
             similar_recipes.append(all_recipes_ids[index])
-    return similar_recipes
     
+   
+    
+    if not similar_recipes:
+        # Clean the user query and split it into words
+        cleaned_query = re.sub(r'[^\w\s]', ' ', user_query)  # Replace non-word characters with spaces
+        query_words = cleaned_query.lower().split()  # Convert to lowercase and split into words
+        result = None
+        recipes = set()
+        for word in query_words:
+            ingredient_res = Ingredient.query.filter(Ingredient.name == word).first()
+            if ingredient_res:
+                result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
+
+            tag_res = Tag.query.filter(Tag.name == word).first()
+            if tag_res:
+                result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
+                continue
+        
+            if word:
+                name_res = Recipe.query.filter(Recipe.name.contains(word))
+                if name_res:        
+                    result = search_recipes(recipes=recipes, query_res=name_res, result=result)
+    
+        for recipe in result:
+            similar_recipes.append(recipe.id)
+    return similar_recipes

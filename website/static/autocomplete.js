@@ -87,7 +87,7 @@ function autocomplete(inp, tags_inp, ingredients_inp) {
         x[currentFocus].click();
         currentFocus = -1; // Reset currentFocus after selection
       } else if (!window.location.pathname.includes('/post_recipe')){
-        console.log("Submitting form");
+        console.log("Submitting form: In autocomplete");
         updateHiddenFields();
         this.form.submit();
       }

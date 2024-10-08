@@ -7,11 +7,12 @@ import pandas as pd
 from flask_caching import Cache
 from flask_migrate import Migrate
 import faiss
-
+import numpy as np
 
 db = SQLAlchemy()
 DB_NAME = "database"
 cache = Cache(config={'CACHE_TYPE': 'simple'})
+model_name = 'paraphrase-mpnet-base-v2'
 
 def create_app():
     app = Flask(__name__)
@@ -33,7 +34,7 @@ def create_app():
     from .models import User 
     # from .models import generate_recipe_embeddings
 
-    create_database(app, 'all-MiniLM-L6-v2')
+    create_database(app, model_name)
     
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'
@@ -48,28 +49,48 @@ def create_app():
 
     return app
 
+def create_weighted_embedding(model, recipe, weights):
+    ingredients_text = ', '.join([ingredient.name for ingredient in recipe.ingredients])
+    tags_text = ', '.join([tag.name for tag in recipe.tags])
+    steps_text = '. '.join(recipe.steps.split('|'))
+    
+    text_data = [
+        f"Recipe: {recipe.name}",
+        f"Ingredients: {ingredients_text}",
+        f"Tags: {tags_text}",
+        f"Description: {recipe.desc}",
+        f"Steps: {steps_text}"
+    ]
+    
+    embeddings = model.encode(text_data)
+    weighted_embedding = np.average(embeddings, axis=0, weights=weights)
+    return weighted_embedding
+
 def update_recipes_embeddings(model):
     from .models import Recipe
 
     if path.exists('instance/' + DB_NAME):
         print("Updating recipe embeddings...")
+        recipes_len = Recipe.query.count()
+        batch_size = 100
+        weights = [1.0, 1.5, 1.4, 1.0, 1.3]
+        for i in range(0, recipes_len, batch_size):            
+            # Query recipes in the current batch
+            recipes = Recipe.query.offset(i).limit(batch_size).all()
+       
+            for recipe in recipes:
+                print(f"Updating recipe {recipe.id}")
+                # Generate new embedding for each recipe
+                new_embedding = create_weighted_embedding(model, recipe, weights)
+                
+                # Update the recipe's embedding
+                recipe.embedding = new_embedding.tolist()
 
-        # Fetch all recipes
-        recipes = Recipe.query.all()
-        
-        for recipe in recipes:
-            print(f"Updating recipe {recipe.id}")
-            text_data = f"{recipe.name} {recipe.ingredients} {recipe.tags or ''} {recipe.desc}. {recipe.steps}"
-            # Generate new embedding for each recipe
-            new_embedding = model.encode(text_data)  # Assuming 'text' is the field with the recipe content
-            
-            # Update the recipe's embedding
-            recipe.embedding = new_embedding.tolist()  # Convert numpy array to list if needed
-        
-        # Commit the changes to the database
-        db.session.commit()
+            print(f"Committed recipes {i+1} - {min(i + batch_size, recipes_len)}")
+            db.session.commit()
         print("Recipe embeddings updated successfully.")
     else:
+
         print("Database does not exist.")
 
 def create_database(app, model_name):
@@ -123,8 +144,17 @@ def create_database(app, model_name):
                     recipe.tags.append(db_tag)
 
                 
-                steps = [s.strip() for s in m_steps]
-                text_data = f"{recipe.name} {recipe.ingredients} {recipe.tags or ''} {recipe.desc}. {'. '.join(steps)}"
+                ingredients_text = ', '.join(ingredients_list)
+                tags_text = ', '.join(tags_list)
+                steps_text = '. '.join(m_steps)
+                
+                text_data = (
+                    f"Recipe's Name: {row['name']}."
+                    f"Recipe's Ingredients: {ingredients_text}."
+                    f"Recipe's Tags: {tags_text}."
+                    f"Recipe's Description: {row['description']}."
+                    f"Recipe's Instructions: {steps_text}."
+                )
                 
                 # Generate embedding for the recipe
                 embedding = model.encode(text_data)
@@ -138,18 +168,19 @@ def create_database(app, model_name):
                 db.session.add(recipe)
                 db.session.commit()
             
-                print(f"{recipe.id} : {recipe.embedding}")
+                print(f"Commited {recipe.id} to database")
 
             print('Created Database!')
         
 
         if not path.exists(f'recipe_index_{model_name}.faiss'):
-            # update_recipes_embeddings(model)
+            update_recipes_embeddings(model)
             m_faiss_index = create_faiss_index()
             faiss.write_index(m_faiss_index, f'recipe_index_{model_name}.faiss')
         else:
             set_faiss_index(faiss.read_index(f'recipe_index_{model_name}.faiss'))
 
+        
         all_recipes_ids = [recipe.id for recipe in Recipe.query.with_entities(Recipe.id).all()]
         cache.set('all_recipes_ids', all_recipes_ids)
         cache.set('all_recipes_ids_len', len(all_recipes_ids))

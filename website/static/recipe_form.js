@@ -181,8 +181,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Validate and combine tags and ingredients
     const tagsInput = window.addedTags;
-    const ingredientsInput = window.addedIngredients;
 
+    const ingredientsInput = window.addedIngredients;
+    
     const allTags = new Set([...tagsInput]);
     const allIngredients = new Set([...ingredientsInput]);
 
@@ -230,28 +231,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // Send the form data to the server
     Promise.all(Array.from(formData.values()).filter(value => value instanceof Promise))
       .then(() => {
-        fetch(form.action, {
-          method: 'POST',
-          body: formData,
-          redirect: 'follow' // This tells fetch to follow redirects
-        }).then(response => {
-          if (response.ok) {
-            // Check if the response is a redirect
-            if (response.redirected) {
-              window.location.href = response.url; // Go to the URL the server redirected to
-            } else {
-              // Handle non-redirect successful response
-              console.log('Form submitted successfully');
-              // Optionally, you can redirect to a default page if no redirect was received
-              // window.location.href = '/profile';
-            }
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        redirect: 'follow' // This tells fetch to follow redirects
+      }).then(response => {
+        if (response.ok) {
+          // Check if the response is a redirect
+          if (response.redirected) {
+            window.location.href = response.url; // Go to the URL the server redirected to
           } else {
-            // Handle error responses
-            console.error('Form submission failed');
+            // Handle non-redirect successful response
+            console.log('Form submitted successfully');
+            // Optionally, you can redirect to a default page if no redirect was received
+            // window.location.href = '/profile';
           }
-        }).catch(error => {
-          console.error('Error:', error);
-        });
+        } else {
+          // Handle error responses
+          console.error('Form submission failed');
+        }
+      }).catch(error => {
+        console.error('Error:', error);
       });
+    });
   });
 });
