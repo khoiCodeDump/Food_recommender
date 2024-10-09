@@ -23,7 +23,6 @@ def home():
     data = {"route": 0}
     return render_template("home.html", data=data )
 
-@cache.cached(timeout=60)  # Use the cache decorator directly
 @views.route('/load', methods=['GET'])
 def load():
     time.sleep(0.2)

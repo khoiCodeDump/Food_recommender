@@ -5,7 +5,6 @@ from flask_login import LoginManager
 import ast
 import pandas as pd
 from flask_caching import Cache
-from flask_migrate import Migrate
 import faiss
 import numpy as np
 
@@ -22,9 +21,6 @@ def create_app():
 
     cache.init_app(app)
 
-    migrate = Migrate()
-    migrate.init_app(app, db)
-
     from .views import views
     from .auth import auth
     
@@ -32,7 +28,6 @@ def create_app():
     app.register_blueprint(auth, url_prefix='/auth')
     
     from .models import User 
-    # from .models import generate_recipe_embeddings
 
     create_database(app, model_name)
     
@@ -43,9 +38,6 @@ def create_app():
     @login_manager.user_loader
     def load_user(id):
         return User.query.get(int(id))
-
-    # with app.app_context():
-    #     generate_recipe_embeddings()
 
     return app
 
@@ -182,8 +174,8 @@ def create_database(app, model_name):
 
         
         all_recipes_ids = [recipe.id for recipe in Recipe.query.with_entities(Recipe.id).all()]
-        cache.set('all_recipes_ids', all_recipes_ids)
-        cache.set('all_recipes_ids_len', len(all_recipes_ids))
+        cache.set('all_recipes_ids', all_recipes_ids, timeout=0)
+        cache.set('all_recipes_ids_len', len(all_recipes_ids), timeout=0)
 
 
 

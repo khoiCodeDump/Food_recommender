@@ -6,6 +6,7 @@ import faiss
 import numpy as np
 from website import model_name
 import re
+import collections
 
 model = SentenceTransformer(model_name)
 faiss_index = None
@@ -243,35 +244,36 @@ def semantic_search_recipes(user_query, all_recipes_ids, k_elements, similarity_
     
     # Filter results based on the similarity threshold
     similar_recipes = []
+    # Clean the user query and split it into words
+    cleaned_query = re.sub(r'[^\w\s]', ' ', user_query)  # Replace non-word characters with spaces
+    query_words = cleaned_query.lower().split()  # Convert to lowercase and split into words
+    result = None
+    recipes = set()
+    for word in query_words:
+        ingredient_res = Ingredient.query.filter(Ingredient.name == word).first()
+        if ingredient_res:
+            result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
+
+        tag_res = Tag.query.filter(Tag.name == word).first()
+        if tag_res:
+            result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
+            continue
+    
+        if word:
+            name_res = Recipe.query.filter(Recipe.name.contains(word))
+            if name_res:        
+                result = search_recipes(recipes=recipes, query_res=name_res, result=result)
+    
+    for recipe in result:
+        similar_recipes.append(recipe.id)
+    
+    similar_recipes = dict.fromkeys(similar_recipes)
+
     for distance, index in zip(distances[0], indices[0]):
         similarity = 1 / (1 + distance)  # Convert distance to similarity
         if similarity >= similarity_threshold:
-            print(similarity)
-            similar_recipes.append(all_recipes_ids[index])
+            similar_recipes[all_recipes_ids[index]] = None
     
-   
+    similar_recipes = list(similar_recipes)
     
-    if not similar_recipes:
-        # Clean the user query and split it into words
-        cleaned_query = re.sub(r'[^\w\s]', ' ', user_query)  # Replace non-word characters with spaces
-        query_words = cleaned_query.lower().split()  # Convert to lowercase and split into words
-        result = None
-        recipes = set()
-        for word in query_words:
-            ingredient_res = Ingredient.query.filter(Ingredient.name == word).first()
-            if ingredient_res:
-                result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
-
-            tag_res = Tag.query.filter(Tag.name == word).first()
-            if tag_res:
-                result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
-                continue
-        
-            if word:
-                name_res = Recipe.query.filter(Recipe.name.contains(word))
-                if name_res:        
-                    result = search_recipes(recipes=recipes, query_res=name_res, result=result)
-    
-        for recipe in result:
-            similar_recipes.append(recipe.id)
     return similar_recipes
