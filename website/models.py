@@ -231,22 +231,33 @@ def search_recipes(recipes, query_res, result):
         
     return res
 
+def clean_query(user_query):
+    # First, remove 's at the end of words
+    cleaned_query = re.sub(r"'s\b", '', user_query)
+    
+    # Then remove other non-word characters (except apostrophes within words)
+    cleaned_query = re.sub(r"[^\w\s']|\s'|'\s", ' ', cleaned_query)
+    
+    # Finally, remove any remaining apostrophes and extra spaces
+    cleaned_query = re.sub(r"'", '', cleaned_query)
+    cleaned_query = ' '.join(cleaned_query.split())
+    
+    return cleaned_query.lower()
+
 def semantic_search_recipes(user_query, all_recipes_ids, k_elements, similarity_threshold=0.1):
     
     global faiss_index
     
-    
     # Generate an embedding for the user's query
     query_embedding = model.encode(user_query)
-
     # Search the FAISS index for the most similar recipes
     distances, indices = faiss_index.search(np.array([query_embedding], dtype=np.float32), k_elements)
     
     # Filter results based on the similarity threshold
     similar_recipes = []
     # Clean the user query and split it into words
-    cleaned_query = re.sub(r'[^\w\s]', ' ', user_query)  # Replace non-word characters with spaces
-    query_words = cleaned_query.lower().split()  # Convert to lowercase and split into words
+    cleaned_query = clean_query(user_query)
+    query_words = cleaned_query.split()
     result = None
     recipes = set()
     for word in query_words:

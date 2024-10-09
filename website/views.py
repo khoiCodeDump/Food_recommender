@@ -18,6 +18,8 @@ views = Blueprint('views', __name__)
 quantity = 45
 model = SentenceTransformer(model_name)
 
+RETRY_DELAY = 1  # seconds
+
 @views.route('/', methods=['GET', 'POST'])
 def home():
     data = {"route": 0}
@@ -27,7 +29,7 @@ def home():
 def load():
     time.sleep(0.2)
     count = request.args.get('count', 0, type=int)
-    
+
     try:
         ids = [id + 1 for id in range(count, count+quantity)]
         res = Recipe.query.filter(Recipe.id.in_(ids)).all()
@@ -50,13 +52,13 @@ def load():
 async def serve_image(filename):
     try:
         file_path = os.path.join(current_app.root_path, 'images', filename)
-        
+
         current_app.logger.info(f"Attempting to serve image: {file_path}")
-        
+
         if not os.path.exists(file_path):
             current_app.logger.error(f"File not found: {file_path}")
             abort(404)
-        
+
         file_size = os.path.getsize(file_path)
         range_header = request.headers.get('Range', None)
 
@@ -104,13 +106,13 @@ async def serve_image(filename):
 async def serve_video(filename):
     try:
         file_path = os.path.join(current_app.root_path, 'videos', filename)
-        
+
         current_app.logger.info(f"Attempting to serve video: {file_path}")
-        
+
         if not os.path.exists(file_path):
             current_app.logger.error(f"File not found: {file_path}")
             abort(404)
-        
+
         file_size = os.path.getsize(file_path)
         range_header = request.headers.get('Range', None)
 
@@ -175,7 +177,7 @@ def get_recipe(recipe_id):
     if temp:
         if temp[0] >= "0" and temp[0] <= "9":
             typeList = "ul"
-    
+
     # Get all valid image URLs for this recipe
     image_urls = []
     images_to_remove = []
@@ -184,7 +186,7 @@ def get_recipe(recipe_id):
             image_urls.append(url_for('views.serve_image', filename=image.filename))
         else:
             images_to_remove.append(image)
-    
+
     # Get all valid video URLs for this recipe
     video_urls = []
     videos_to_remove = []
@@ -193,7 +195,7 @@ def get_recipe(recipe_id):
             video_urls.append(url_for('views.serve_video', filename=video.filename))
         else:
             videos_to_remove.append(video)
-    
+
     # Update the recipe references by removing non-existent files
     if images_to_remove or videos_to_remove:
         for image in images_to_remove:
@@ -204,9 +206,9 @@ def get_recipe(recipe_id):
             db.session.delete(video)
         db.session.commit()
 
-    return render_template("recipe_base.html", 
-                           user=current_user, 
-                           recipe_info=cur_recipe, 
+    return render_template("recipe_base.html",
+                           user=current_user,
+                           recipe_info=cur_recipe,
                            typeList=typeList,
                            image_urls=image_urls,
                            video_urls=video_urls)
@@ -217,20 +219,20 @@ def search():
 
     if not user_query:
         return redirect(request.referrer or url_for('views.home'))
-    
-   
+
     all_recipes_ids = cache.get('all_recipes_ids')
     all_recipes_ids_len = cache.get('all_recipes_ids_len')
 
-    # Query the fine-tuned OpenAI model with the user's search query
-    results_ids = semantic_search_recipes(user_query=user_query, all_recipes_ids=all_recipes_ids, k_elements=all_recipes_ids_len)
-        
     if current_user.is_authenticated:
         user_id = current_user.id
     else:
         if 'anonymous_id' not in session:
             session['anonymous_id'] = str(uuid.uuid4())
         user_id = session['anonymous_id']
+
+    cache.set(f"user:{user_id}:search_result", None)
+
+    results_ids = semantic_search_recipes(user_query=user_query, all_recipes_ids=all_recipes_ids, k_elements=all_recipes_ids_len)
 
     cache.set(f"user:{user_id}:search_result", results_ids)
     # Return the search results to the user
@@ -249,7 +251,14 @@ def load_search():
             user_id = current_user.id
         else:
             user_id = session.get('anonymous_id')
+
         recipe_list = cache.get(f"user:{user_id}:search_result")
+        while recipe_list is None:
+            recipe_list =  cache.get(f"user:{user_id}:search_result")
+            if recipe_list is None:
+                current_app.logger.info(f"Waiting for search results for user {user_id}")
+                time.sleep(RETRY_DELAY)
+
         res = Recipe.query.filter(Recipe.id.in_(recipe_list[count: count + quantity]))
         data = {}
         for stuff in res:
@@ -274,7 +283,7 @@ def profile():
         ids = [recipe.id for recipe in Recipe.query.filter(Recipe.user_id==current_user.id).all()]
         cache.set(f"user:{current_user.id}:profile", ids)
 
-    return render_template("profile.html", data=data, tags=cache.get("all_tags"), ingredients= cache.get("all_ingredients") ) 
+    return render_template("profile.html", data=data)
 
 @views.route('/load_profile', methods=['GET'])
 @login_required
@@ -284,6 +293,12 @@ def load_profile():
 
     try:
         recipe_ids = cache.get(f"user:{current_user.id}:profile")
+        while recipe_ids is None:
+            recipe_ids = cache.get(f"user:{current_user.id}:profile")
+            if recipe_ids is None:
+                current_app.logger.info(f"Waiting for profile load for user {current_user.id}")
+                time.sleep(RETRY_DELAY)
+
         res = Recipe.query.filter(Recipe.id.in_(recipe_ids[count: count + quantity]))
         res = res[count: count + quantity]
         data = {}
@@ -300,7 +315,7 @@ def load_profile():
         res = make_response(jsonify({}), 200)
 
     return res
-    
+
 @views.route('/post_recipe', methods=['GET', 'POST'])
 @login_required
 def post_recipe():
@@ -321,11 +336,11 @@ def post_recipe():
         recipe.name = bleach.clean(request.form.get("Title"))
         recipe.cook_time = bleach.clean(request.form.get("Cook_time"))
         recipe.desc = bleach.clean(request.form.get("Description"))
-        
+
         # Handle steps
         steps = bleach.clean(request.form.get("Instructions"))
         recipe.steps = steps  # This will now be a |-separated string of steps
-        
+
 
         # Handle existing images
         existing_images = [value for key, value in request.form.items() if key.startswith('existing_images_')]
@@ -415,7 +430,7 @@ def post_recipe():
         ingredients_text = ', '.join([ingredient.name for ingredient in recipe.ingredients])
         tags_text = ', '.join([tag.name for tag in recipe.tags])
         steps_text = '. '.join(recipe.steps.split('|'))
-        
+
         text_data = (
             f"Recipe Name: {recipe.name}. "
             f"Ingredients: {ingredients_text}. "
@@ -423,7 +438,7 @@ def post_recipe():
             f"Description: {recipe.desc}. "
             f"Steps: {steps_text}."
         )
-        
+
         # Generate embedding for the recipe
         embedding = model.encode(text_data)
         recipe.embedding = embedding.tolist()
@@ -443,21 +458,21 @@ def post_recipe():
         cache.set('all_recipes_ids_len', len(all_recipes_ids))
 
         return redirect(url_for('views.get_recipe', recipe_id=recipe.id))
-    
+
     tags = Tag.query.all()
     ingredients = Ingredient.query.all()
     # GET request. Adding new recipe
     recipe_id = request.args.get('recipe_id')
     if not recipe_id:
         return render_template("post_recipe_form.html", user=current_user, recipe=[], tags=tags, ingredients=ingredients)
-        
+
     # Updating existing recipe
     recipe = Recipe.query.filter_by(id=recipe_id, user_id=current_user.id).first()
     if not recipe:
         abort(403)  # Forbidden if the recipe doesn't exist or doesn't belong to the user
     existing_images = Image.query.filter_by(recipe_id=recipe.id).all()
     existing_video = Video.query.filter_by(recipe_id=recipe.id).first()
-    
+
     return render_template("post_recipe_form.html", user=current_user, recipe=recipe, tags=tags, ingredients=ingredients, existing_images=existing_images, existing_video=existing_video)
 
 @views.route('/delete_recipe', methods=['POST'])
@@ -467,7 +482,7 @@ def delete_recipe():
     recipe = json.loads(request.data)
     recipe_id = recipe['recipe']
     recipe = Recipe.query.get(recipe_id)
-    
+
     if recipe:
         if recipe.user_id == current_user.id:
             remove_recipe_from_faiss(recipe=recipe)
@@ -485,7 +500,7 @@ def delete_recipe():
                     db.session.delete(ingredient)
             db.session.delete(recipe)
             db.session.commit()
-    
+
     user_search_cache_key = f"user:{current_user.id}:search_result"
     user_profile_cache_key = f"user:{current_user.id}:profile"
     # Use delete_many for efficient multiple key deletion
@@ -496,6 +511,6 @@ def delete_recipe():
     cache.set('all_recipes_ids_len', len(all_recipes_ids))
 
     # remove_recipe_from_faiss(recipe_id=recipe_id)
-    return jsonify({}) 
+    return jsonify({})
 
 
