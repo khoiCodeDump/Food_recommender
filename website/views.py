@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, make_response, abort, current_app, send_file, session
 from flask_login import login_required, current_user
-from .models import Recipe, Tag, Ingredient, Image, Video, semantic_search_recipes, add_recipe_to_faiss, remove_recipe_from_faiss
+from .models import Recipe, Tag, Ingredient, Image, Video, add_recipe_to_faiss, remove_recipe_from_faiss, combined_search_recipes
 from . import db
 from werkzeug.utils import secure_filename
 from .utils import allowed_file, serve_media, query_openai
@@ -220,7 +220,6 @@ def search():
     if not user_query:
         return redirect(request.referrer or url_for('views.home'))
 
-    all_recipes_ids = cache.get('all_recipes_ids')
     all_recipes_ids_len = cache.get('all_recipes_ids_len')
 
     if current_user.is_authenticated:
@@ -232,8 +231,9 @@ def search():
 
     cache.set(f"user:{user_id}:search_result", None)
 
-    results_ids = semantic_search_recipes(user_query=user_query, all_recipes_ids=all_recipes_ids, k_elements=all_recipes_ids_len)
+    results_ids = combined_search_recipes(user_query=user_query, k_elements=all_recipes_ids_len)
 
+    
     cache.set(f"user:{user_id}:search_result", results_ids)
     # Return the search results to the user
     data = {"route": 2}
@@ -258,7 +258,6 @@ def load_search():
             if recipe_list is None:
                 current_app.logger.info(f"Waiting for search results for user {user_id}")
                 time.sleep(RETRY_DELAY)
-
         res = Recipe.query.filter(Recipe.id.in_(recipe_list[count: count + quantity]))
         data = {}
         for stuff in res:
@@ -429,14 +428,15 @@ def post_recipe():
 
         ingredients_text = ', '.join([ingredient.name for ingredient in recipe.ingredients])
         tags_text = ', '.join([tag.name for tag in recipe.tags])
-        steps_text = '. '.join(recipe.steps.split('|'))
+        numbered_steps = " ".join([f"{i+1}. {step}" for i, step in enumerate(recipe.steps.split("|"))])
 
         text_data = (
-            f"Recipe Name: {recipe.name}. "
-            f"Ingredients: {ingredients_text}. "
-            f"Tags: {tags_text}. "
-            f"Description: {recipe.desc}. "
-            f"Steps: {steps_text}."
+            f"The recipe name is {recipe.name}"
+            f"The recipe takes {recipe.cook_time} minutes to cook"
+            f"To cook the recipe, the following ingredients are required, separated by commas: {ingredients_text}."
+            f"The recipe has the following associated tags, separated by commas: {tags_text}."
+            f"The description of the recipe is: {recipe.desc}. "
+            f"Here are the instructions to cook the recipe: {numbered_steps}."
         )
 
         # Generate embedding for the recipe
@@ -453,9 +453,7 @@ def post_recipe():
         # Use delete_many for efficient multiple key deletion
         cache.delete(user_search_cache_key)
         cache.delete(user_profile_cache_key)
-        all_recipes_ids = [recipe.id for recipe in Recipe.query.with_entities(Recipe.id).all()]
-        cache.set('all_recipes_ids', all_recipes_ids)
-        cache.set('all_recipes_ids_len', len(all_recipes_ids))
+        cache.set('all_recipes_ids_len', len(Recipe.query.count()))
 
         return redirect(url_for('views.get_recipe', recipe_id=recipe.id))
 
@@ -506,9 +504,7 @@ def delete_recipe():
     # Use delete_many for efficient multiple key deletion
     cache.delete(user_search_cache_key)
     cache.delete(user_profile_cache_key)
-    all_recipes_ids = [recipe.id for recipe in Recipe.query.with_entities(Recipe.id).all()]
-    cache.set('all_recipes_ids', all_recipes_ids)
-    cache.set('all_recipes_ids_len', len(all_recipes_ids))
+    cache.set('all_recipes_ids_len', len(Recipe.query.count()))
 
     # remove_recipe_from_faiss(recipe_id=recipe_id)
     return jsonify({})

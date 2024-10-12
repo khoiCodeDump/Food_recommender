@@ -7,9 +7,15 @@ import numpy as np
 from website import model_name
 import re
 import collections
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sqlalchemy.orm import joinedload
+
 
 model = SentenceTransformer(model_name)
 faiss_index = None
+vectorizer = None
+tfidf_matrix = None
 
 tag_table = db.Table('recipe_tag',
                     db.Column('recipe_id', db.Integer, db.ForeignKey('recipe.id')),
@@ -78,14 +84,15 @@ def generate_recipe_embeddings():
         for recipe in batch:
             ingredients_text = ', '.join([ingredient.name for ingredient in recipe.ingredients])
             tags_text = ', '.join([tag.name for tag in recipe.tags])
-            steps_text = '. '.join(recipe.steps.split('|'))
-            
+            numbered_steps = " ".join([f"{i+1}. {step}" for i, step in enumerate(recipe.steps.split("|"))])
+
             text_data = (
-                f"Recipe Name: {recipe.name}. "
-                f"Ingredients: {ingredients_text}. "
-                f"Tags: {tags_text}. "
-                f"Description: {recipe.desc}. "
-                f"Steps: {steps_text}."
+                f"The recipe name is {recipe.name}",
+                f"The recipe takes {recipe.cook_time} minutes to cook",
+                f"To cook the recipe, the following ingredients are required, separated by commas: {ingredients_text}."
+                f"The recipe has the following associated tags, separated by commas: {tags_text}."
+                f"The description of the recipe is: {recipe.desc}. "
+                f"Here are the instructions to cook the recipe: {numbered_steps}."
             )
             
             # Generate embedding for the recipe
@@ -244,47 +251,106 @@ def clean_query(user_query):
     
     return cleaned_query.lower()
 
-def semantic_search_recipes(user_query, all_recipes_ids, k_elements, similarity_threshold=0.1):
+def semantic_search_recipes(user_query, k_elements, similarity_threshold=0.1):
     
     global faiss_index
-    
+
     # Generate an embedding for the user's query
+
     query_embedding = model.encode(user_query)
     # Search the FAISS index for the most similar recipes
     distances, indices = faiss_index.search(np.array([query_embedding], dtype=np.float32), k_elements)
     
     # Filter results based on the similarity threshold
     similar_recipes = []
-    # Clean the user query and split it into words
-    cleaned_query = clean_query(user_query)
-    query_words = cleaned_query.split()
-    result = None
-    recipes = set()
-    for word in query_words:
-        ingredient_res = Ingredient.query.filter(Ingredient.name == word).first()
-        if ingredient_res:
-            result = search_recipes(recipes=recipes, query_res=ingredient_res, result=result)
-
-        tag_res = Tag.query.filter(Tag.name == word).first()
-        if tag_res:
-            result = search_recipes(recipes=recipes, query_res=tag_res, result=result)
-            continue
-    
-        if word:
-            name_res = Recipe.query.filter(Recipe.name.contains(word))
-            if name_res:        
-                result = search_recipes(recipes=recipes, query_res=name_res, result=result)
-    
-    for recipe in result:
-        similar_recipes.append(recipe.id)
-    
-    similar_recipes = dict.fromkeys(similar_recipes)
 
     for distance, index in zip(distances[0], indices[0]):
         similarity = 1 / (1 + distance)  # Convert distance to similarity
         if similarity >= similarity_threshold:
-            similar_recipes[all_recipes_ids[index]] = None
-    
-    similar_recipes = list(similar_recipes)
-    
+            similar_recipes.append(index+1)
+        
     return similar_recipes
+
+
+def set_tfidvectorizer(m_vectorizer, matrix):
+    global vectorizer, tfidf_matrix
+    vectorizer = m_vectorizer
+    tfidf_matrix = matrix
+
+# Function to prepare text for TF-IDF
+def prepare_recipe_text(recipe):
+    ingredients = ' '.join([i.name for i in recipe.ingredients])
+    tags = ' '.join([t.name for t in recipe.tags])
+    return f"{recipe.name} {ingredients} {recipe.desc} {tags}"
+
+def initialize_tfidvectorizer(all_recipes_ids_len):
+    global vectorizer, tfidf_matrix
+    recipe_texts = []
+    for i in range(0, all_recipes_ids_len):    
+        print(f"Formatting text for recipe {i+1}")
+        recipe = Recipe.query.get(i+1)
+        recipe_texts.append(prepare_recipe_text(recipe))
+
+    # Initialize TfidfVectorizer with appropriate parameters
+    vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
+
+    # Fit the vectorizer to your text data
+    tfidf_matrix = vectorizer.fit_transform(recipe_texts)
+
+    return vectorizer, tfidf_matrix
+
+
+def tfidf_search_recipes(query, top_n=100):
+    
+    # Transform the query to a vector using the same vectorizer
+    query_vector = vectorizer.transform([query])
+
+    # Compute cosine similarity between the query and all recipe vectors
+    cosine_similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
+
+    # Get the top N most similar recipes
+    top_indices = cosine_similarities.argsort()[-top_n:][::-1]
+
+    recipes = []
+
+    for index in top_indices:
+        print(cosine_similarities[index])
+        recipes.append(int(index + 1))
+    # Return the top matching recipes
+    return recipes
+
+def combined_search_recipes(user_query, k_elements=100, semantic_threshold=0.1, tfidf_threshold=0.2, tfidf_boost=1.5):
+    global faiss_index, model, vectorizer, tfidf_matrix
+
+    # Semantic Search
+    query_embedding = model.encode(user_query)
+    distances, indices = faiss_index.search(np.array([query_embedding], dtype=np.float32), k_elements)
+    
+    semantic_results = {}
+    for distance, index in zip(distances[0], indices[0]):
+        similarity = 1 / (1 + distance)  # Convert distance to similarity
+        if similarity >= semantic_threshold:
+            semantic_results[index + 1] = similarity
+
+    # TF-IDF Search
+    query_vector = vectorizer.transform([user_query])
+    cosine_similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
+    
+    tfidf_results = {}
+    for i, similarity in enumerate(cosine_similarities):
+        if similarity >= tfidf_threshold:
+            tfidf_results[i + 1] = similarity * tfidf_boost  # Boost TF-IDF scores
+
+    # Combine results
+    combined_results = {}
+    for recipe_id in set(semantic_results.keys()) | set(tfidf_results.keys()):
+        combined_results[recipe_id] = max(
+            semantic_results.get(recipe_id, 0),
+            tfidf_results.get(recipe_id, 0)
+        )
+
+    # Sort results by score in descending order
+    sorted_results = sorted(combined_results.items(), key=lambda x: x[1], reverse=True)
+
+    # Return recipe IDs
+    return [ int(recipe_id) for recipe_id, _ in sorted_results]

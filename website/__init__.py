@@ -7,6 +7,8 @@ import pandas as pd
 from flask_caching import Cache
 import faiss
 import numpy as np
+import scipy.sparse as sp
+import pickle
 
 db = SQLAlchemy()
 DB_NAME = "database"
@@ -43,17 +45,17 @@ def create_app():
 
 def create_weighted_embedding(model, recipe, weights):
     ingredients_text = ', '.join([ingredient.name for ingredient in recipe.ingredients])
-    tags_text = ', '.join([tag.name for tag in recipe.tags])
-    steps_text = '. '.join(recipe.steps.split('|'))
-    
-    text_data = [
-        f"Recipe: {recipe.name}",
-        f"Ingredients: {ingredients_text}",
-        f"Tags: {tags_text}",
-        f"Description: {recipe.desc}",
-        f"Steps: {steps_text}"
-    ]
-    
+    tags_text = ', '.join([tag.name.replace('-', ' ') for tag in recipe.tags])
+    numbered_steps = " ".join([f"{i+1}. {step}" for i, step in enumerate(recipe.steps.split("|"))])
+
+    text_data = (
+        f"The recipe name is {recipe.name}",
+        f"The recipe takes {recipe.cook_time} minutes to cook",
+        f"To cook the recipe, the following ingredients are required, separated by commas: {ingredients_text}.",
+        f"The recipe has the following associated tags, separated by commas: {tags_text}.",
+        f"The description of the recipe is: {recipe.desc}. ",
+        f"Here are the instructions to cook the recipe: {numbered_steps}."
+    )
     embeddings = model.encode(text_data)
     weighted_embedding = np.average(embeddings, axis=0, weights=weights)
     return weighted_embedding
@@ -65,7 +67,7 @@ def update_recipes_embeddings(model):
         print("Updating recipe embeddings...")
         recipes_len = Recipe.query.count()
         batch_size = 100
-        weights = [1.0, 1.5, 1.4, 1.0, 1.3]
+        weights = [1.2, 1.1, 1.5, 1.4, 1.1, 1.2]
         for i in range(0, recipes_len, batch_size):            
             # Query recipes in the current batch
             recipes = Recipe.query.offset(i).limit(batch_size).all()
@@ -86,7 +88,7 @@ def update_recipes_embeddings(model):
         print("Database does not exist.")
 
 def create_database(app, model_name):
-    from .models import Recipe, Tag, Ingredient, create_faiss_index, set_faiss_index
+    from .models import Recipe, Tag, Ingredient, create_faiss_index, set_faiss_index, initialize_tfidvectorizer, set_tfidvectorizer
     from sentence_transformers import SentenceTransformer
 
     with app.app_context():
@@ -138,14 +140,16 @@ def create_database(app, model_name):
                 
                 ingredients_text = ', '.join(ingredients_list)
                 tags_text = ', '.join(tags_list)
-                steps_text = '. '.join(m_steps)
-                
+
+                numbered_steps = " ".join([f"{i+1}. {step}" for i, step in enumerate(m_steps)])
+
                 text_data = (
-                    f"Recipe's Name: {row['name']}."
-                    f"Recipe's Ingredients: {ingredients_text}."
-                    f"Recipe's Tags: {tags_text}."
-                    f"Recipe's Description: {row['description']}."
-                    f"Recipe's Instructions: {steps_text}."
+                    f"The recipe name is {row['name']}",
+                    f"The recipe takes {row['minutes']} minutes to cook",
+                    f"To cook the recipe, the following ingredients are required, separated by commas: {ingredients_text}."
+                    f"The recipe has the following associated tags, separated by commas: {tags_text}."
+                    f"The description of the recipe is: {row['description']}. "
+                    f"Here are the instructions to cook the recipe: {numbered_steps}."
                 )
                 
                 # Generate embedding for the recipe
@@ -173,10 +177,18 @@ def create_database(app, model_name):
             set_faiss_index(faiss.read_index(f'recipe_index_{model_name}.faiss'))
 
         
-        all_recipes_ids = [recipe.id for recipe in Recipe.query.with_entities(Recipe.id).all()]
-        cache.set('all_recipes_ids', all_recipes_ids, timeout=0)
-        cache.set('all_recipes_ids_len', len(all_recipes_ids), timeout=0)
+        cache.set('all_recipes_ids_len', Recipe.query.count(), timeout=0)
 
+        if not (path.exists('tfidf_matrix.npz') or path.exists('tfidf_vectorizer.pkl') ):
+            vectorizer, tfidf_matrix = initialize_tfidvectorizer(cache.get('all_recipes_ids_len'))
+            with open('tfidf_vectorizer.pkl', 'wb') as f:
+                pickle.dump(vectorizer, f)
+            sp.save_npz('tfidf_matrix.npz', tfidf_matrix)
+        else:
+            with open('tfidf_vectorizer.pkl', 'rb') as f:
+                vectorizer = pickle.load(f)
 
+            # Load the tfidf matrix
+            tfidf_matrix = sp.load_npz('tfidf_matrix.npz')
 
-
+            set_tfidvectorizer(vectorizer, tfidf_matrix)
