@@ -190,21 +190,11 @@ def add_recipe_to_faiss(recipe):
 
 def remove_recipe_from_faiss(recipe):
     global faiss_index
-
-    # Convert the recipe embedding to numpy array
-    recipe_embedding = np.array([recipe.embedding], dtype=np.float32)
-
-    # Search for the exact embedding in the FAISS index
-    _, indices = faiss_index.search(recipe_embedding, 1)
     
-    if indices[0][0] != -1:
-        # Remove the embedding from the FAISS index
-        faiss_index.remove_ids(np.array([indices[0][0]]))
-        print(f"Removed recipe {recipe.id} from FAISS index.")
+    # Remove the embedding from the FAISS index
+    faiss_index.remove_ids(np.array([recipe.id - 1]))
+    print(f"Removed recipe {recipe.id} from FAISS index.")
         
-    else:
-        print(f"Recipe {recipe.id} not found in FAISS index.")
-
     # Optionally, save the updated FAISS index to disk
     faiss.write_index(faiss_index, f'recipe_index_{model_name}.faiss')
 

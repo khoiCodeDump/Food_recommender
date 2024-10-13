@@ -453,7 +453,7 @@ def post_recipe():
         # Use delete_many for efficient multiple key deletion
         cache.delete(user_search_cache_key)
         cache.delete(user_profile_cache_key)
-        cache.set('all_recipes_ids_len', len(Recipe.query.count()))
+        cache.set('all_recipes_ids_len', Recipe.query.count())
 
         return redirect(url_for('views.get_recipe', recipe_id=recipe.id))
 
@@ -504,7 +504,7 @@ def delete_recipe():
     # Use delete_many for efficient multiple key deletion
     cache.delete(user_search_cache_key)
     cache.delete(user_profile_cache_key)
-    cache.set('all_recipes_ids_len', len(Recipe.query.count()))
+    cache.set('all_recipes_ids_len', Recipe.query.count())
 
     # remove_recipe_from_faiss(recipe_id=recipe_id)
     return jsonify({})
