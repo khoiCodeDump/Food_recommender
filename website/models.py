@@ -314,31 +314,27 @@ def combined_search_recipes(user_query, k_elements=100, semantic_threshold=0.1, 
     query_embedding = model.encode(user_query)
     distances, indices = faiss_index.search(np.array([query_embedding], dtype=np.float32), k_elements)
     
-    semantic_results = {}
+    results = {}
     for distance, index in zip(distances[0], indices[0]):
         similarity = 1 / (1 + distance)  # Convert distance to similarity
         if similarity >= semantic_threshold:
-            semantic_results[index + 1] = similarity
+            results[index + 1] = similarity
 
     # TF-IDF Search
     query_vector = vectorizer.transform([user_query])
     cosine_similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
     
-    tfidf_results = {}
     for i, similarity in enumerate(cosine_similarities):
         if similarity >= tfidf_threshold:
-            tfidf_results[i + 1] = similarity * tfidf_boost  # Boost TF-IDF scores
-
-    # Combine results
-    combined_results = {}
-    for recipe_id in set(semantic_results.keys()) | set(tfidf_results.keys()):
-        combined_results[recipe_id] = max(
-            semantic_results.get(recipe_id, 0),
-            tfidf_results.get(recipe_id, 0)
-        )
+            recipe_id = i + 1
+            boosted_similarity = similarity * tfidf_boost
+            if recipe_id in results:
+                results[recipe_id] = max(results[recipe_id], boosted_similarity)
+            else:
+                results[recipe_id] = boosted_similarity
 
     # Sort results by score in descending order
-    sorted_results = sorted(combined_results.items(), key=lambda x: x[1], reverse=True)
+    sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)
 
     # Return recipe IDs
     return [ int(recipe_id) for recipe_id, _ in sorted_results]
