@@ -6,10 +6,8 @@ import faiss
 import numpy as np
 from website import model_name
 import re
-import collections
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from sqlalchemy.orm import joinedload
 
 
 model = SentenceTransformer(model_name)
