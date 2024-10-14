@@ -8,6 +8,9 @@ from website import model_name
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from scipy.sparse import vstack
+import scipy.sparse as sp
+import numpy as np
 
 
 model = SentenceTransformer(model_name)
@@ -172,7 +175,7 @@ def create_faiss_index(batch_size=1000):
         return None, []
 
 def add_recipe_to_faiss(recipe):
-    global faiss_index
+    global faiss_index, vectorizer, tfidf_matrix
     # Reshape the embedding to fit FAISS input
     embedding = np.array([recipe.embedding], dtype=np.float32)
 
@@ -186,6 +189,13 @@ def add_recipe_to_faiss(recipe):
     # Optionally, save the updated FAISS index to disk
     faiss.write_index(faiss_index, f'recipe_index_{model_name}.faiss')
 
+    recipe_text = prepare_recipe_text(recipe)
+    new_tfidf = vectorizer.transform([recipe_text])
+
+    # Update the TF-IDF matrix
+    tfidf_matrix = vstack([tfidf_matrix, new_tfidf])
+    sp.save_npz('tfidf_matrix.npz', tfidf_matrix)
+
 def remove_recipe_from_faiss(recipe):
     global faiss_index
     
@@ -196,6 +206,17 @@ def remove_recipe_from_faiss(recipe):
     # Optionally, save the updated FAISS index to disk
     faiss.write_index(faiss_index, f'recipe_index_{model_name}.faiss')
 
+    row_to_remove = recipe.id - 1  # Assuming recipe IDs start from 1
+    mask = np.ones(tfidf_matrix.shape[0], dtype=bool)
+    mask[row_to_remove] = False
+    tfidf_matrix = tfidf_matrix[mask]
+
+    print(f"Removed recipe {recipe.id} from TF-IDF matrix.")
+    print(f"Updated TF-IDF matrix shape: {tfidf_matrix.shape}")
+
+    # Save the updated TF-IDF matrix
+    sp.save_npz('tfidf_matrix.npz', tfidf_matrix)
+    
 def search_recipes(recipes, query_res, result):
     clone_recipe_ids = set()
 
