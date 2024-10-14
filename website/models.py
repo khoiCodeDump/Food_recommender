@@ -197,7 +197,7 @@ def add_recipe_to_faiss(recipe):
     sp.save_npz('tfidf_matrix.npz', tfidf_matrix)
 
 def remove_recipe_from_faiss(recipe):
-    global faiss_index
+    global faiss_index, tfidf_matrix
     
     # Remove the embedding from the FAISS index
     faiss_index.remove_ids(np.array([recipe.id - 1]))
