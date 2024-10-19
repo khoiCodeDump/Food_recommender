@@ -10,7 +10,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.sparse import vstack
 import scipy.sparse as sp
-import numpy as np
 
 
 model = SentenceTransformer(model_name)
