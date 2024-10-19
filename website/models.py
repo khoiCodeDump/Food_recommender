@@ -328,7 +328,7 @@ def tfidf_search_recipes(query, top_n=100):
     # Return the top matching recipes
     return recipes
 
-def combined_search_recipes(user_query, k_elements=100, semantic_threshold=0.1, tfidf_threshold=0.2, tfidf_boost=1.5):
+def combined_search_recipes(user_query, k_elements=100, semantic_threshold=0.1, tfidf_threshold=0.05, tfidf_boost=1):
     global faiss_index, model, vectorizer, tfidf_matrix
 
     # Semantic Search
