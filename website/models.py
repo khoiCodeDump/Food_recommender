@@ -6,7 +6,7 @@ import faiss
 import numpy as np
 from website import model_name
 import re
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.sparse import vstack
 import scipy.sparse as sp
@@ -327,34 +327,56 @@ def tfidf_search_recipes(query, top_n=100):
     # Return the top matching recipes
     return recipes
 
-def combined_search_recipes(user_query, k_elements=100, semantic_threshold=0.1, tfidf_threshold=0.05, tfidf_boost=1):
+def combined_search_recipes(user_query, k_elements=100, semantic_threshold=0.1, tfidf_threshold=1, semantic_weight=0.4, tfidf_weight=0.6):
     global faiss_index, model, vectorizer, tfidf_matrix
 
     # Semantic Search
     query_embedding = model.encode(user_query)
     distances, indices = faiss_index.search(np.array([query_embedding], dtype=np.float32), k_elements)
     
-    results = {}
+    semantic_results = {}
     for distance, index in zip(distances[0], indices[0]):
         similarity = 1 / (1 + distance)  # Convert distance to similarity
         if similarity >= semantic_threshold:
-            results[index + 1] = similarity
+            semantic_results[index + 1] = similarity
 
     # TF-IDF Search
-    query_vector = vectorizer.transform([user_query])
-    cosine_similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
+    # Remove stop words and split the query
+    query_terms = [term.lower() for term in user_query.split() if term.lower() not in ENGLISH_STOP_WORDS]
     
-    for i, similarity in enumerate(cosine_similarities):
-        if similarity >= tfidf_threshold:
+    # Get the feature names (words) from the vectorizer
+    feature_names = np.array(vectorizer.get_feature_names_out())
+    
+    # Find the indices of query terms in the feature names
+    query_term_indices = [np.where(feature_names == term)[0][0] for term in query_terms if term in feature_names]
+    
+    # Find documents with matching keywords (counting each term only once)
+    matching_docs = np.sum((tfidf_matrix[:, query_term_indices].toarray() > 0).astype(int), axis=1)
+    
+    tfidf_results = {}
+    for i, match_count in enumerate(matching_docs):
+        if match_count >= tfidf_threshold:
             recipe_id = i + 1
-            boosted_similarity = similarity * tfidf_boost
-            if recipe_id in results:
-                results[recipe_id] = max(results[recipe_id], boosted_similarity)
-            else:
-                results[recipe_id] = boosted_similarity
+            # Score is directly proportional to the number of unique matching terms
+            score = match_count / len(query_terms)
+            tfidf_results[recipe_id] = score
+
+    # Combine results
+    combined_results = {}
+    all_recipe_ids = set(semantic_results.keys()) | set(tfidf_results.keys())
+    
+    for recipe_id in all_recipe_ids:
+        semantic_score = semantic_results.get(recipe_id, 0)
+        tfidf_score = tfidf_results.get(recipe_id, 0)
+        combined_score = (semantic_weight * semantic_score) + (tfidf_weight * tfidf_score)
+        combined_results[recipe_id] = combined_score
 
     # Sort results by score in descending order
-    sorted_results = sorted(results.items(), key=lambda x: x[1], reverse=True)
+    sorted_results = sorted(combined_results.items(), key=lambda x: x[1], reverse=True)
 
     # Return recipe IDs
-    return [ int(recipe_id) for recipe_id, _ in sorted_results]
+    return [int(recipe_id) for recipe_id, _ in sorted_results]
+
+
+
+

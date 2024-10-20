@@ -253,18 +253,18 @@ def load_search():
             user_id = session.get('anonymous_id')
 
         recipe_list = cache.get(f"user:{user_id}:search_result")
-        while recipe_list is None:
-            recipe_list =  cache.get(f"user:{user_id}:search_result")
-            if recipe_list is None:
-                current_app.logger.info(f"Waiting for search results for user {user_id}")
-                time.sleep(RETRY_DELAY)
+        
+        for i in range(10):
+            rec = Recipe.query.get(recipe_list[i])
+            print(rec.name)
+        
         res = Recipe.query.filter(Recipe.id.in_(recipe_list[count: count + quantity]))
         data = {}
-        for stuff in res:
-            first_image = stuff.images.first()
+        for recipe in res:
+            first_image = recipe.images.first()
             image_url = url_for('views.serve_image', filename=first_image.filename) if first_image else url_for('static', filename='images/food_image_empty.png')
-            data[stuff.id] = {
-                'name': stuff.name,
+            data[recipe.id] = {
+                'name': recipe.name,
                 'image_url': image_url
             }
         res = make_response(data)
