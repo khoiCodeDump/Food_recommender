@@ -254,16 +254,17 @@ def load_search():
 
         recipe_list = cache.get(f"user:{user_id}:search_result")
         
-        for i in range(10):
-            rec = Recipe.query.get(recipe_list[i])
-            print(rec.name)
-        
-        res = Recipe.query.filter(Recipe.id.in_(recipe_list[count: count + quantity]))
+        res = Recipe.query.filter(Recipe.id.in_(recipe_list[count: count + quantity])).order_by(
+            db.case({id: index for index, id in enumerate(recipe_list[count: count + quantity])}, value=Recipe.id)
+        )
+
         data = {}
-        for recipe in res:
+
+        for i, recipe in enumerate(res):
             first_image = recipe.images.first()
             image_url = url_for('views.serve_image', filename=first_image.filename) if first_image else url_for('static', filename='images/food_image_empty.png')
-            data[recipe.id] = {
+            data[i] = {
+                'id' : recipe.id,
                 'name': recipe.name,
                 'image_url': image_url
             }
@@ -292,11 +293,6 @@ def load_profile():
 
     try:
         recipe_ids = cache.get(f"user:{current_user.id}:profile")
-        while recipe_ids is None:
-            recipe_ids = cache.get(f"user:{current_user.id}:profile")
-            if recipe_ids is None:
-                current_app.logger.info(f"Waiting for profile load for user {current_user.id}")
-                time.sleep(RETRY_DELAY)
 
         res = Recipe.query.filter(Recipe.id.in_(recipe_ids[count: count + quantity]))
         res = res[count: count + quantity]

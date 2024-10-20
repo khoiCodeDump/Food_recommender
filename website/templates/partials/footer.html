@@ -33,7 +33,7 @@
                     for(const key in data){
                         let template_clone = template.content.cloneNode(true);
                         const load_link = template_clone.querySelector("a");
-                        load_link.setAttribute("href", `/recipes/${key}`);
+                        load_link.setAttribute("href", `/recipes/${data[key].id}`);
                         const recipe_image = template_clone.querySelector("img");
                         
                         recipe_image.setAttribute("src", data[key].image_url);
